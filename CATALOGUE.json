@@ -64,6 +64,96 @@
       "lookup_entries": 2394,
       "bytes": 2699393,
       "sha256": "c55469eaad15495012b05afb28817db50a96b6225ebf8f834428a78910c9c9ae"
+    },
+    {
+      "file": "japanese-former-provinces-yomitan.zip",
+      "title": "Former Provinces of Japan (Illustrated)",
+      "revision": "2026-08-09-pretty-v2",
+      "description": "The former provinces of Japan, their readings, circuit groupings, modern prefecture equivalents, and maps.",
+      "lookup_entries": 76,
+      "bytes": 2452225,
+      "sha256": "4e317563b3b0f1074912b6b24cf81f7636a2cac6bedfcfab81b253485b6c59e4"
+    },
+    {
+      "file": "japanese-kanji-phonetic-families-yomitan.zip",
+      "title": "Japanese Kanji Phonetic Families",
+      "revision": "2026-08-09-pretty-v2",
+      "description": "Kanji phonetic components, expected on-readings, confidence, example family members, exceptions, and component diagrams.",
+      "lookup_entries": 750,
+      "bytes": 623781,
+      "sha256": "95ae46bb3fe822c83cab4360d785b711655a16dcd72f5990d87e2c1496aa258c"
+    },
+    {
+      "file": "japanese-lakes-yomitan.zip",
+      "title": "Japan's Lakes — Illustrated",
+      "revision": "2026-08-09-illustrated-v1",
+      "description": "Fifty major Japanese lakes with readings, source-deck area/rank data, municipalities, maps, and sourced photographs.",
+      "lookup_entries": 54,
+      "bytes": 9955178,
+      "sha256": "123ea7a9a5f1b4c865a129d1bc8b4e0bb8a934967b1d579a72506eb64bada6d1"
+    },
+    {
+      "file": "japanese-proper-nouns-mk2-yomitan.zip",
+      "title": "Japanese Proper Nouns Mk II",
+      "revision": "2026-08-09-local-conversion",
+      "description": "Japanese place names, family names, and personal names with readings, explanations, alternate readings, and photographs.",
+      "lookup_entries": 15006,
+      "bytes": 292117300,
+      "sha256": "8e2c90d082717d66ca48fccbcd9378fc11d96c62fa3ef7865194bae263dacaeb"
+    },
+    {
+      "file": "japanese-public-holidays-yomitan.zip",
+      "title": "Japanese Public Holidays (2026)",
+      "revision": "2026-08-09-pretty-v2",
+      "description": "Japan's national holidays with readings, statutory purposes, background, and official 2026 dates.",
+      "lookup_entries": 17,
+      "bytes": 8987,
+      "sha256": "351a1b3c6eb862f4c270cf328290c601683e02321f1dbd64ae372e075bd84ef1"
+    },
+    {
+      "file": "japanese-shinto-kami-yomitan.zip",
+      "title": "Illustrated Shinto Kami & Japanese Mythology",
+      "revision": "2026-08-09-wikidata-kami-class-live",
+      "description": "Illustrated guide to Shinto kami and mythological deities with Japanese readings, aliases, English overviews, source text, relationships, and source traditions.",
+      "lookup_entries": 2123,
+      "bytes": 3644772,
+      "sha256": "a80a25a5aa20c22f86fe287172b7270d084a3c92aec54e1f6d0eec56f1b53ad7"
+    },
+    {
+      "file": "japanese-traditional-crafts-yomitan.zip",
+      "title": "Japan’s METI Traditional Crafts · 伝統的工芸品",
+      "revision": "2026-08-09-METI-20251027-v1",
+      "description": "All 244 nationally designated traditional crafts current on 2025-10-27, with readings, explanations, regions, categories, products, designation facts, Japanese source text, and catalogue photos.",
+      "lookup_entries": 244,
+      "bytes": 6861428,
+      "sha256": "c40e64d16750849859ddeecf3c89c7cb8ec608475bbecf208b60075a7f9a207a"
+    },
+    {
+      "file": "japanese-hyaku-meizan-yomitan.zip",
+      "title": "Japan’s 100 Famous Mountains · 日本百名山",
+      "revision": "2026-08-09-gsi-20260331-v1",
+      "description": "Exactly 100 mountains from Fukada Kyūya’s 日本百名山, with current GSI summit records, readings, coordinates, regions, and photographs.",
+      "lookup_entries": 100,
+      "bytes": 13154350,
+      "sha256": "bd0340f8d1af499f7d1319558f353e5f860af602959ec444ee80021564ebd9f7"
+    },
+    {
+      "file": "japanese-kamon-yomitan.zip",
+      "title": "Japanese Kamon Encyclopedia (426 Illustrated Crests)",
+      "revision": "2026-08-09-sakanaai-4afc80f8ba",
+      "description": "Japanese family-crest blazons with translations, readings, motif breakdowns, and representative Edo/Wikimedia illustrations.",
+      "lookup_entries": 426,
+      "bytes": 23533092,
+      "sha256": "a70679c979677f2a8d0161797778c50965e0ef9eda6a14bb41ed0e941c97b1f8"
+    },
+    {
+      "file": "japanese-national-parks-yomitan.zip",
+      "title": "National Parks of Japan — Illustrated",
+      "revision": "2026-08-09-illustrated-v1",
+      "description": "All 35 current Japanese national parks with official readings, English-first overviews, designation data, prefectures, and sourced photographs.",
+      "lookup_entries": 70,
+      "bytes": 7862982,
+      "sha256": "e636cb883d4ec9426fc4864d6960435a9a1c31e25ec6d37c1cd111630ffafeaa"
     }
   ]
 }
