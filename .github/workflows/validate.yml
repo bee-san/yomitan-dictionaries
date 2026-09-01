@@ -1,0 +1,102 @@
+name: Validate Yomitan dictionaries
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 1 * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: yomitan-dictionaries-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  YOMITAN_REF: ${{ github.event_name == 'schedule' && 'master' || '77e200428902abf4fa48284df92da7af3dcb4162' }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run validator unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Read release tag
+        id: release
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          print(f"tag={json.load(open('CATALOGUE.json', encoding='utf-8'))['release']}")
+          PY
+
+      - name: Download all published dictionaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir release-assets
+          gh release download "${{ steps.release.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir release-assets \
+            --pattern "*.zip" \
+            --pattern "CHECKSUMS.sha256"
+
+      - name: Verify release structure, hashes and media references
+        run: |
+          cmp CHECKSUMS.sha256 release-assets/CHECKSUMS.sha256
+          python scripts/validate_release.py \
+            --assets-dir release-assets \
+            --catalogue CATALOGUE.json \
+            --checksums CHECKSUMS.sha256
+
+      - name: Check out the pinned Yomitan importer
+        run: |
+          git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+          git config --global --add url."https://github.com/".insteadOf git@github.com:
+          git init yomitan
+          git -C yomitan remote add origin https://github.com/yomidevs/yomitan.git
+          git -C yomitan fetch --depth 1 origin "$YOMITAN_REF"
+          git -C yomitan checkout --detach FETCH_HEAD
+          echo "YOMITAN_VERSION=$(git -C yomitan rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Build Yomitan's official importer
+        working-directory: yomitan
+        run: |
+          npm ci --ignore-scripts
+          npm run build:libs
+          cp "$GITHUB_WORKSPACE/scripts/yomitan_import_smoke.mjs" ext/import-smoke.mjs
+
+      - name: Import and query every dictionary
+        run: |
+          mkdir import-results
+          expected=$(python -c "import json; print(len(json.load(open('CATALOGUE.json'))['archives']))")
+          actual=0
+          for archive in release-assets/*.zip; do
+            name=$(basename "$archive" .zip)
+            node --max-old-space-size=6144 yomitan/ext/import-smoke.mjs "$archive" \
+              | tee "import-results/$name.json"
+            actual=$((actual + 1))
+          done
+          test "$actual" -eq "$expected"
+
+      - name: Upload import evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yomitan-import-results
+          path: import-results
+          if-no-files-found: ignore
