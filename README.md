@@ -29,7 +29,7 @@ Downloading or syncing a ZIP does not automatically import it into Yomitan.
 | **Japanese Yōkai Encyclopedia** | 387 yōkai and supernatural phenomena with readings, variants, Japanese descriptions, classifications and 279 open or public-domain illustrations | 715 | 41.2 MB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/japanese-yokai-encyclopedia-yomitan.zip) |
 | **日本語文型バンク (NINJAL 2026.01)** | 2,394 Japanese grammar patterns with official explanations, connection rules, levels, categories and examples | 2,394 | 2.7 MB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/ninjal-bunkei-yomitan-2026.01.33.zip) |
 | **Former Provinces of Japan** | Former provinces with readings, circuit groupings, modern prefecture equivalents and maps | 76 | 2.5 MB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/japanese-former-provinces-yomitan.zip) |
-| **Japanese Kanji Phonetic Families** | Phonetic components, expected on-readings, confidence, family members, exceptions and diagrams | 750 | 624 KB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/japanese-kanji-phonetic-families-yomitan.zip) |
+| **Japanese Kanji Phonetic Families** | Phonetic components, expected on-readings, confidence, family members, exceptions and diagrams | 750 | 669 KB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/japanese-kanji-phonetic-families-yomitan.zip) |
 | **Japan's Lakes** | 50 major lakes with readings, area/rank data, municipalities, maps and photographs | 54 | 10.0 MB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/japanese-lakes-yomitan.zip) |
 | **Japanese Proper Nouns Mk II** | Place names, family names and personal names with readings, explanations, alternate readings and photographs | 15,006 | 292.1 MB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/japanese-proper-nouns-mk2-yomitan.zip) |
 | **Japanese Public Holidays (2026)** | National holidays with readings, statutory purposes, background and official 2026 dates | 17 | 9 KB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/japanese-public-holidays-yomitan.zip) |
@@ -122,6 +122,8 @@ If you redistribute an archive or reuse its contents, preserve all attribution f
 ## Integrity
 
 Every published asset passed Python's complete ZIP CRC test, contains a parseable Yomitan `index.json`, and was scanned for accidental local paths and private identifiers.
+
+The repaired Japanese Kanji Phonetic Families archive also validates all 750 entries against Yomitan's current official term-bank v3 schema.
 
 After downloading the assets and `CHECKSUMS.sha256` into the same directory, verify them with:
 

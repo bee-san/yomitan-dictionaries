@@ -77,11 +77,11 @@
     {
       "file": "japanese-kanji-phonetic-families-yomitan.zip",
       "title": "Japanese Kanji Phonetic Families",
-      "revision": "2026-08-09-pretty-v2",
+      "revision": "2026-09-01-pretty-v3",
       "description": "Kanji phonetic components, expected on-readings, confidence, example family members, exceptions, and component diagrams.",
       "lookup_entries": 750,
-      "bytes": 623781,
-      "sha256": "95ae46bb3fe822c83cab4360d785b711655a16dcd72f5990d87e2c1496aa258c"
+      "bytes": 668867,
+      "sha256": "9d4df9dfb9feffd2862f15c200f223aabb7a503ff3c629c5e4aec170f2d1b098"
     },
     {
       "file": "japanese-lakes-yomitan.zip",
