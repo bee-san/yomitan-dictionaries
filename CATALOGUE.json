@@ -14,11 +14,11 @@
     {
       "file": "japanese-hyakunin-isshu-yomitan.zip",
       "title": "Illustrated Ogura Hyakunin Isshu (100 Poems)",
-      "revision": "2026-08-09-wikisource-240235-porter1909",
+      "revision": "2026-08-09-wikisource-240235-porter1909-v2",
       "description": "All 100 poems with Japanese text, historical kana readings, poets, source anthologies, public-domain English translations, notes, and historical cards.",
       "lookup_entries": 900,
-      "bytes": 3726181,
-      "sha256": "6c286e984a7dbfc212139cbf911d193b768f5890fbf39f390269e22ce9fcfafe"
+      "bytes": 3732414,
+      "sha256": "c98a2a5f5f5aa293ccb90e79e81b47d8a43cebc1493c401d094d35007fedd429"
     },
     {
       "file": "japanese-railway-stations-yomitan.zip",
@@ -68,11 +68,11 @@
     {
       "file": "japanese-former-provinces-yomitan.zip",
       "title": "Former Provinces of Japan (Illustrated)",
-      "revision": "2026-08-09-pretty-v2",
+      "revision": "2026-08-09-pretty-v3",
       "description": "The former provinces of Japan, their readings, circuit groupings, modern prefecture equivalents, and maps.",
       "lookup_entries": 76,
-      "bytes": 2452225,
-      "sha256": "4e317563b3b0f1074912b6b24cf81f7636a2cac6bedfcfab81b253485b6c59e4"
+      "bytes": 2451511,
+      "sha256": "da72ab586612b5afdb80f5ece7d113d11e578dbb3b88a69d1400b3c4912bc46a"
     },
     {
       "file": "japanese-kanji-phonetic-families-yomitan.zip",
@@ -104,38 +104,38 @@
     {
       "file": "japanese-public-holidays-yomitan.zip",
       "title": "Japanese Public Holidays (2026)",
-      "revision": "2026-08-09-pretty-v2",
+      "revision": "2026-08-09-pretty-v3",
       "description": "Japan's national holidays with readings, statutory purposes, background, and official 2026 dates.",
       "lookup_entries": 17,
-      "bytes": 8987,
-      "sha256": "351a1b3c6eb862f4c270cf328290c601683e02321f1dbd64ae372e075bd84ef1"
+      "bytes": 8632,
+      "sha256": "449f94022d39f7e02df5d81e9f6c50786f229930d0b55e99ebaece074259d11e"
     },
     {
       "file": "japanese-shinto-kami-yomitan.zip",
       "title": "Illustrated Shinto Kami & Japanese Mythology",
-      "revision": "2026-08-09-wikidata-kami-class-live",
+      "revision": "2026-08-09-wikidata-kami-class-live-v2",
       "description": "Illustrated guide to Shinto kami and mythological deities with Japanese readings, aliases, English overviews, source text, relationships, and source traditions.",
       "lookup_entries": 2123,
-      "bytes": 3644772,
-      "sha256": "a80a25a5aa20c22f86fe287172b7270d084a3c92aec54e1f6d0eec56f1b53ad7"
+      "bytes": 3654157,
+      "sha256": "ed57efa3a2b15531886317b7a2d87404bdcddcecf66f8c0a9f0d32a91fbe2d89"
     },
     {
       "file": "japanese-traditional-crafts-yomitan.zip",
       "title": "Japan’s METI Traditional Crafts · 伝統的工芸品",
-      "revision": "2026-08-09-METI-20251027-v1",
+      "revision": "2026-08-09-METI-20251027-v2",
       "description": "All 244 nationally designated traditional crafts current on 2025-10-27, with readings, explanations, regions, categories, products, designation facts, Japanese source text, and catalogue photos.",
       "lookup_entries": 244,
-      "bytes": 6861428,
-      "sha256": "c40e64d16750849859ddeecf3c89c7cb8ec608475bbecf208b60075a7f9a207a"
+      "bytes": 6866108,
+      "sha256": "14e0f0db244fbece4990410abfb11d8083d50c94ebf487a4d54f4c098eac7c5a"
     },
     {
       "file": "japanese-hyaku-meizan-yomitan.zip",
       "title": "Japan’s 100 Famous Mountains · 日本百名山",
-      "revision": "2026-08-09-gsi-20260331-v1",
+      "revision": "2026-08-09-gsi-20260331-v2",
       "description": "Exactly 100 mountains from Fukada Kyūya’s 日本百名山, with current GSI summit records, readings, coordinates, regions, and photographs.",
       "lookup_entries": 100,
-      "bytes": 13154350,
-      "sha256": "bd0340f8d1af499f7d1319558f353e5f860af602959ec444ee80021564ebd9f7"
+      "bytes": 13155914,
+      "sha256": "d1935c6374426fd69930e9682aa16408e47c5deedbe37e29212d8030dac9e4b2"
     },
     {
       "file": "japanese-kamon-yomitan.zip",

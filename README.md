@@ -4,7 +4,7 @@ Custom Japanese dictionaries for Yomitan, covering places, culture, food, folklo
 
 [![Latest release](https://img.shields.io/github/v/release/bee-san/yomitan-dictionaries?label=download)](https://github.com/bee-san/yomitan-dictionaries/releases/latest)
 [![Dictionaries](https://img.shields.io/badge/dictionaries-17-6f42c1)](https://github.com/bee-san/yomitan-dictionaries/releases)
-[![Archive tests](https://img.shields.io/badge/ZIP%20tests-passing-brightgreen)](CHECKSUMS.sha256)
+[![Yomitan validation](https://github.com/bee-san/yomitan-dictionaries/actions/workflows/validate.yml/badge.svg)](https://github.com/bee-san/yomitan-dictionaries/actions/workflows/validate.yml)
 
 The ZIP files are published as [GitHub release assets](https://github.com/bee-san/yomitan-dictionaries/releases/latest), not committed to Git. Each archive is ready to import directly into Yomitan. Source and attribution information appears in `index.json` and, where available, dedicated manifests inside the archive.
 
@@ -121,12 +121,19 @@ If you redistribute an archive or reuse its contents, preserve all attribution f
 
 ## Integrity
 
-Every published asset passed Python's complete ZIP CRC test, contains a parseable Yomitan `index.json`, and was scanned for accidental local paths and private identifiers.
+Every published asset passes a complete ZIP CRC test, metadata and checksum checks, lookup-entry counts, contiguous bank numbering, safe path checks and media-reference checks.
 
-The repaired Japanese Kanji Phonetic Families archive also validates all 750 entries against Yomitan's current official term-bank v3 schema.
+GitHub Actions downloads all 17 published archives, imports each one with Yomitan's official importer, and queries a real term from every imported dictionary. Change checks use a pinned compatibility commit for repeatable results. A monthly check follows Yomitan's current default branch to catch future importer incompatibilities.
 
 After downloading the assets and `CHECKSUMS.sha256` into the same directory, verify them with:
 
 ```bash
 shasum -a 256 -c CHECKSUMS.sha256
+```
+
+Repository checks can be run locally with:
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 scripts/validate_release.py --assets-dir ./release-assets
 ```
