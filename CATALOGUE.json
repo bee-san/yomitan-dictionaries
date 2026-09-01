@@ -1,0 +1,69 @@
+{
+  "release": "2026.09.01",
+  "release_url": "https://github.com/bee-san/yomitan-dictionaries/releases/tag/2026.09.01",
+  "archives": [
+    {
+      "file": "japanese-cities-yomitan.zip",
+      "title": "Japanese Cities & Wards (815, Illustrated)",
+      "revision": "2026-08-09-130524e8-wikipedia",
+      "description": "Japanese names, readings, prefectures, populations, maps, and attributed Japanese Wikipedia lead images for 815 cities and wards.",
+      "lookup_entries": 815,
+      "bytes": 125330362,
+      "sha256": "1606bbfd01d035a812039db97953d4a7032ec3d9b21e0abe3e747c4af2cd9967"
+    },
+    {
+      "file": "japanese-hyakunin-isshu-yomitan.zip",
+      "title": "Illustrated Ogura Hyakunin Isshu (100 Poems)",
+      "revision": "2026-08-09-wikisource-240235-porter1909",
+      "description": "All 100 poems with Japanese text, historical kana readings, poets, source anthologies, public-domain English translations, notes, and historical cards.",
+      "lookup_entries": 900,
+      "bytes": 3726181,
+      "sha256": "6c286e984a7dbfc212139cbf911d193b768f5890fbf39f390269e22ce9fcfafe"
+    },
+    {
+      "file": "japanese-railway-stations-yomitan.zip",
+      "title": "Japanese Railway Stations (11,439; Current + Historical)",
+      "revision": "20260731-station-database-extra-v2",
+      "description": "Current and historical Japanese stations and stops with readings, lines, operators, prefectures, addresses, dates, and coordinates.",
+      "lookup_entries": 12750,
+      "bytes": 2484412,
+      "sha256": "fb924fab4de41f14f6601b44386319f7a8dfba4654065402b3dcf9c7828a3495"
+    },
+    {
+      "file": "japanese-regional-cuisine-yomitan.zip",
+      "title": "Japanese Regional Cuisine (1015 Illustrated Dishes)",
+      "revision": "2026-08-09-maff-pdl1",
+      "description": "Illustrated regional dishes with readings, prefectures, traditional areas, ingredients, history, and Japanese/English descriptions.",
+      "lookup_entries": 1139,
+      "bytes": 156661562,
+      "sha256": "1ec50775ae1563d392a381d5b1f1c2d13eb9a38031558aee70b0ad99ff7092f0"
+    },
+    {
+      "file": "japanese-traditional-colors-yomitan.zip",
+      "title": "Japanese Traditional Colours (227 Exact Swatches)",
+      "revision": "2026-08-09-wikipedia-1361728433",
+      "description": "Traditional Japanese colour names with readings, romanisation, English meanings, exact RGB/hex values, and generated swatches.",
+      "lookup_entries": 228,
+      "bytes": 754408,
+      "sha256": "e2a24dd1929af46916d593ace5d4049d733b929604e19d0195e414bc63b092df"
+    },
+    {
+      "file": "japanese-yokai-encyclopedia-yomitan.zip",
+      "title": "Japanese Yōkai Encyclopedia (387, Illustrated)",
+      "revision": "2026-08-09-55910fe1-wikimedia",
+      "description": "Japanese yōkai and supernatural phenomena with readings, variants, descriptions, classifications, and open or public-domain illustrations.",
+      "lookup_entries": 715,
+      "bytes": 41174926,
+      "sha256": "a5cfe3e548cec5a625c49fa791f91e6c64a5045daf22fc3768b7f47115e12a8f"
+    },
+    {
+      "file": "ninjal-bunkei-yomitan-2026.01.33.zip",
+      "title": "日本語文型バンク（NINJAL 2026.01）",
+      "revision": "2026.01.33",
+      "description": "Japanese grammar patterns with official explanations, connection rules, levels, categories, and examples.",
+      "lookup_entries": 2394,
+      "bytes": 2699393,
+      "sha256": "c55469eaad15495012b05afb28817db50a96b6225ebf8f834428a78910c9c9ae"
+    }
+  ]
+}

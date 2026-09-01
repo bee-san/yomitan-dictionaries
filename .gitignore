@@ -1,0 +1,5 @@
+# Dictionary archives belong in GitHub Releases, not Git history.
+*.zip
+
+.DS_Store
+release-downloads/
