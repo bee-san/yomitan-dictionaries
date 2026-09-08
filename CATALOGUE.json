@@ -154,6 +154,15 @@
       "lookup_entries": 70,
       "bytes": 7862982,
       "sha256": "e636cb883d4ec9426fc4864d6960435a9a1c31e25ec6d37c1cd111630ffafeaa"
+    },
+    {
+      "file": "onomanabi-yomitan.zip",
+      "title": "Onomanabi - Japanese Onomatopoeia",
+      "revision": "2026.09.08-v1",
+      "description": "1,515 Japanese onomatopoeia entries converted from Onomanabi_1.apkg. 838 include definitions and bilingual examples; 677 retain the source's missing-definition warning. Includes readings, romanisation, notes, categories, source status and native pitch metadata. Generated glosses and rule-derived pitches are explicitly labelled. Anki animations, CSS and device TTS are not included.",
+      "lookup_entries": 1515,
+      "bytes": 197016,
+      "sha256": "a1bd707e8bc8f37691970816a5837ef0a8fa0da0ff8b90632adbb937262d3cf4"
     }
   ]
 }
