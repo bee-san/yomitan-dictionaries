@@ -17,7 +17,11 @@ from scripts.grammar.sources.community import (
     adapt_yokubi_tree,
     find_duplicate_archives,
 )
-from scripts.grammar.sources.yomitan import AdapterError, adapt_yomitan_archive
+from scripts.grammar.sources.yomitan import (
+    MAX_ARCHIVE_BYTES,
+    AdapterError,
+    adapt_yomitan_archive,
+)
 
 
 INDEX_REVISION = "synthetic-v1"
@@ -28,21 +32,27 @@ def _write_yomitan(
     *,
     title: str = "Synthetic grammar",
     revision: str = INDEX_REVISION,
+    url: str | None = None,
     term: str = "〜synthetic",
     second_term: str | None = None,
     media: bytes | None = None,
+    top_level_image: bool = False,
+    definition_tags: str | None = "N3",
+    score: int | float = 0,
     malformed_row: bool = False,
     directory_member: bool = False,
 ) -> Path:
     glossary: list[object] = ["Synthetic explanation"]
     if media is not None:
         glossary.append(
-            {
+            {"type": "image", "path": "chart.png"}
+            if top_level_image
+            else {
                 "type": "structured-content",
                 "content": {"tag": "img", "path": "chart.png"},
             }
         )
-    row: list[object] = [term, "", "N3", "", 0, glossary, 7, ""]
+    row: list[object] = [term, "", definition_tags, "", score, glossary, 7, ""]
     if malformed_row:
         row.pop()
     rows = [row]
@@ -50,18 +60,19 @@ def _write_yomitan(
         second_row = list(row)
         second_row[0] = second_term
         rows.append(second_row)
+    index = {
+        "title": title,
+        "revision": revision,
+        "format": 3,
+        "sequenced": True,
+        "attribution": "Synthetic fixture attribution",
+    }
+    if url is not None:
+        index["url"] = url
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr(
             "index.json",
-            json.dumps(
-                {
-                    "title": title,
-                    "revision": revision,
-                    "format": 3,
-                    "sequenced": True,
-                    "attribution": "Synthetic fixture attribution",
-                }
-            ),
+            json.dumps(index),
         )
         archive.writestr("term_bank_1.json", json.dumps(rows))
         if directory_member:
@@ -180,6 +191,31 @@ class GenericYomitanAdapterTests(unittest.TestCase):
         self.assertTrue(b.bundle.media[0].source_path.startswith("media/e-de-wakaru/"))
         self.assertEqual(set(a.media_bytes), {a.bundle.media[0].source_path})
 
+    def test_top_level_yomitan_image_definition_is_preserved_as_media(self):
+        archive = _write_yomitan(
+            self.root / "top-level-image.zip",
+            media=b"\x89PNG\r\n\x1a\nIMAGE",
+            top_level_image=True,
+        )
+
+        adapted = _adapt(archive, "donna-toki")
+
+        self.assertEqual(len(adapted.bundle.media), 1)
+        self.assertEqual(adapted.report["media"][0]["original_path"], "chart.png")
+
+    def test_nullable_definition_tags_and_numeric_score_follow_v3_schema(self):
+        archive = _write_yomitan(
+            self.root / "valid-v3-fields.zip",
+            definition_tags=None,
+            score=0.5,
+        )
+
+        adapted = _adapt(archive, "donna-toki")
+
+        row = adapted.bundle.senses[0].blocks[0].to_dict()["content"]["row"]
+        self.assertIsNone(row[2])
+        self.assertEqual(row[4], 0.5)
+
     def test_duplicate_archive_members_and_malformed_rows_fail_loudly(self):
         duplicate = self.root / "duplicate.zip"
         with warnings.catch_warnings():
@@ -225,6 +261,27 @@ class GenericYomitanAdapterTests(unittest.TestCase):
             AdapterError, "not registered as a Yomitan archive"
         ):
             _adapt(archive, "yokubi")
+
+    def test_specialized_sources_cannot_bypass_their_dedicated_adapters(self):
+        archive = _write_yomitan(self.root / "counterfeit-specialized.zip")
+
+        for source_id in ("bee-bunpo", "ninjal-bunkei"):
+            with (
+                self.subTest(source_id=source_id),
+                self.assertRaisesRegex(
+                    AdapterError, "not registered as a Yomitan archive"
+                ),
+            ):
+                _adapt(archive, source_id)
+
+    def test_upstream_index_url_must_match_the_source_registry(self):
+        archive = _write_yomitan(
+            self.root / "wrong-upstream.zip",
+            url="https://example.invalid/counterfeit",
+        )
+
+        with self.assertRaisesRegex(AdapterError, "unsafe upstream index URL"):
+            _adapt(archive, "donna-toki")
 
 
 class YokubiAdapterTests(unittest.TestCase):
@@ -333,6 +390,23 @@ class CommunityCoverageTests(unittest.TestCase):
 
             with self.assertRaisesRegex(AdapterError, "digest pin"):
                 adapt_community_sources({"donna-toki": archive})
+
+    def test_supplied_non_file_is_rejected_instead_of_reported_unavailable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            invalid_input = Path(directory) / "not-an-archive"
+            invalid_input.mkdir()
+
+            with self.assertRaisesRegex(AdapterError, "not a regular file"):
+                adapt_community_sources({"donna-toki": invalid_input})
+
+    def test_duplicate_scan_enforces_the_archive_size_limit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            oversized = Path(directory) / "oversized.zip"
+            with oversized.open("wb") as stream:
+                stream.truncate(MAX_ARCHIVE_BYTES + 1)
+
+            with self.assertRaisesRegex(AdapterError, "exceeds.*byte limit"):
+                find_duplicate_archives({"donna-toki": oversized})
 
     def test_every_selected_and_deferred_candidate_has_an_explicit_outcome(self):
         result = adapt_community_sources()

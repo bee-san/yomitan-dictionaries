@@ -29,7 +29,7 @@ from ..model import (
     SourceSense,
     canonical_json_bytes,
 )
-from ..registry import get_source
+from ..registry import get_source, validate_remote_url
 
 
 MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
@@ -52,8 +52,6 @@ _ROW_FIELDS = (
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 YOMITAN_ARCHIVE_SOURCE_IDS = frozenset(
     {
-        "bee-bunpo",
-        "ninjal-bunkei",
         "nihongo-kyoshi",
         "donna-toki",
         "e-de-wakaru",
@@ -205,14 +203,15 @@ def _validate_row(row: Any, context: str) -> list[Any]:
     _required_text(term, f"{context} term")
     for value, label in (
         (reading, "reading"),
-        (definition_tags, "definition tags"),
         (rules, "rules"),
         (term_tags, "term tags"),
     ):
         if not isinstance(value, str):
             raise AdapterError(f"{context} {label} must be a string")
-    if not isinstance(score, int) or isinstance(score, bool):
-        raise AdapterError(f"{context} score must be an integer")
+    if definition_tags is not None and not isinstance(definition_tags, str):
+        raise AdapterError(f"{context} definition tags must be a string or null")
+    if not isinstance(score, (int, float)) or isinstance(score, bool):
+        raise AdapterError(f"{context} score must be a number")
     if not isinstance(glossary, list) or not glossary:
         raise AdapterError(f"{context} glossary must be a non-empty list")
     if not isinstance(sequence, int) or isinstance(sequence, bool):
@@ -230,9 +229,11 @@ def _media_references(value: Any) -> set[str]:
         for item in value:
             result.update(_media_references(item))
     elif isinstance(value, dict):
-        if value.get("tag") in {"img", "image", "audio"} and isinstance(
-            value.get("path"), str
-        ):
+        has_media_path = (
+            value.get("tag") in {"img", "image", "audio"}
+            or value.get("type") == "image"
+        )
+        if has_media_path and isinstance(value.get("path"), str):
             _safe_member_name(value["path"])
             result.add(value["path"])
         for item in value.values():
@@ -395,6 +396,7 @@ def adapt_yomitan_archive(
             upstream_url = index.get("url")
             if isinstance(upstream_url, str) and upstream_url.strip():
                 try:
+                    validate_remote_url(source_id, upstream_url)
                     links = (SourceLink("Upstream dictionary source", upstream_url),)
                 except ValueError as error:
                     raise AdapterError(f"unsafe upstream index URL: {error}") from error

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import hashlib
 from pathlib import Path
 import re
+import stat
 from types import MappingProxyType
 from typing import Any, Mapping
 
@@ -24,7 +25,12 @@ from ..model import (
     SourceSense,
 )
 from ..registry import get_source
-from .yomitan import AdapterError, YomitanAdaptation, adapt_yomitan_archive
+from .yomitan import (
+    MAX_ARCHIVE_BYTES,
+    AdapterError,
+    YomitanAdaptation,
+    adapt_yomitan_archive,
+)
 
 
 PINNED_YOKUBI_REVISION = "b1c0938b0bda58e20c6ccd21288b46711b438239"
@@ -599,9 +605,34 @@ def find_duplicate_archives(inputs: Mapping[str, str | Path]) -> dict[str, str]:
     duplicates: dict[str, str] = {}
     for source_id, raw_path in inputs.items():
         path = Path(raw_path)
-        if path.is_symlink() or not path.is_file():
+        try:
+            metadata = path.lstat()
+        except OSError as error:
+            raise AdapterError(
+                f"community input for {source_id} is not a regular file"
+            ) from error
+        if not stat.S_ISREG(metadata.st_mode):
             raise AdapterError(f"community input for {source_id} is not a regular file")
-        digest = _sha256(path.read_bytes())
+        if metadata.st_size > MAX_ARCHIVE_BYTES:
+            raise AdapterError(
+                f"community input for {source_id} exceeds {MAX_ARCHIVE_BYTES} byte limit"
+            )
+        digest_builder = hashlib.sha256()
+        total = 0
+        try:
+            with path.open("rb") as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    total += len(chunk)
+                    if total > MAX_ARCHIVE_BYTES:
+                        raise AdapterError(
+                            f"community input for {source_id} exceeds {MAX_ARCHIVE_BYTES} byte limit"
+                        )
+                    digest_builder.update(chunk)
+        except OSError as error:
+            raise AdapterError(
+                f"cannot read community input for {source_id}: {error}"
+            ) from error
+        digest = digest_builder.hexdigest()
         if digest in first_by_digest:
             duplicates[source_id] = first_by_digest[digest]
         else:
@@ -694,23 +725,14 @@ def adapt_community_sources(
         raise AdapterError(
             f"unselected community source inputs are refused: {sorted(unknown)}"
         )
-    existing = {
-        source_id: path
-        for source_id, path in local_inputs.items()
-        if Path(path).is_file() and not Path(path).is_symlink()
-    }
-    duplicates = find_duplicate_archives(existing)
+    duplicates = find_duplicate_archives(local_inputs)
     bundles: list[SourceBundle] = []
     outcomes: list[SourceOutcome] = []
     reports: list[Mapping[str, Any]] = []
     media: dict[str, bytes] = {}
     for spec in PRIVATE_ARCHIVES:
         raw_path = local_inputs.get(spec.source_id)
-        if (
-            raw_path is None
-            or not Path(raw_path).is_file()
-            or Path(raw_path).is_symlink()
-        ):
+        if raw_path is None:
             outcomes.append(
                 SourceOutcome(
                     spec.source_id,

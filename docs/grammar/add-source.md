@@ -17,10 +17,10 @@ A source must already exist in `scripts/grammar/registry.py`. The registry indep
 `scripts.grammar.sources.yomitan.adapt_yomitan_archive()` accepts one local Yomitan v3 ZIP and an allowlisted source ID. It:
 
 1. reads a regular, non-symlink file into a bounded snapshot;
-2. rejects unsafe/duplicate/encrypted/symlink members, CRC errors, oversized expansion, malformed JSON, non-contiguous term banks, and malformed eight-field rows;
+2. rejects unsafe/duplicate/encrypted/symlink members, CRC errors, oversized expansion, malformed JSON, non-contiguous term banks, and malformed eight-field rows while accepting the v3 schema's nullable definition tags and numeric scores;
 3. maps every term row to one source-qualified record and source sense;
 4. preserves the complete original row, index metadata, tag-bank hashes, bank/row locator, field hashes, and immutable archive hash;
-5. resolves every referenced local image/audio member and assigns a source-namespaced, content-addressed target path; and
+5. resolves structured-content images/audio and top-level v3 image definitions, then assigns every referenced member a source-namespaced, content-addressed target path; and
 6. reports auxiliary archive members explicitly instead of treating them as imported grammar content.
 
 Revision identity is `yomitan-<full archive SHA-256>`, not the mutable dictionary title. Two archives with the same title but different bytes therefore cannot collide. Exact-byte mirrors are detected before batch import, and only the first reviewed source is imported. A `sequenced: true` flag is not trusted when every multi-row entry uses the same sentinel sequence; those rows remain `needs-review` instead of being falsely grouped into one concept.
@@ -48,7 +48,7 @@ A digest or count mismatch is fatal. The archive digest must come from a separat
 
 ## Vetted community batch
 
-`adapt_community_sources(local_inputs, archive_digest_pins=..., yokubi_root=...)` accepts only the five reviewed local archive IDs. Every available archive needs a separately recorded digest pin. The batch never downloads missing private inputs. Each candidate gets exactly one `imported`, `link-only`, `unavailable`, or `excluded` outcome with evidence and a reason.
+`adapt_community_sources(local_inputs, archive_digest_pins=..., yokubi_root=...)` accepts only the five reviewed local archive IDs. Bee's supplied dictionary and NINJAL use their dedicated, stricter adapters and cannot be routed through this generic community path. Every available archive needs a separately recorded digest pin. Supplied paths must be bounded regular files; invalid paths fail rather than being mislabeled unavailable. The batch never downloads missing private inputs. Each candidate gets exactly one `imported`, `link-only`, `unavailable`, or `excluded` outcome with evidence and a reason.
 
 Current source-by-source result from the real bounded verification on 8 September 2026:
 
