@@ -4,20 +4,24 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
+import stat
 import sys
 import tempfile
 import time
-from typing import Any, Mapping, cast
+from typing import Any, Iterator, Mapping, cast
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from scripts.grammar.model import (  # type: ignore[import-not-found]
+        AccessMode,
         BuildMode,
         ImportMode,
         PublicationMode,
@@ -34,6 +38,7 @@ if __package__ in {None, ""}:
     )
 else:
     from .model import (
+        AccessMode,
         BuildMode,
         ImportMode,
         PublicationMode,
@@ -72,6 +77,8 @@ def _valid_sha256(value: Any) -> bool:
 
 
 def _strict_keys(value: Mapping[str, Any], allowed: set[str], context: str) -> None:
+    if not isinstance(value, Mapping):
+        raise BuildError(f"{context} must be an object")
     unknown = set(value) - allowed
     if unknown:
         raise BuildError(f"{context} has unsupported keys: {sorted(unknown)}")
@@ -150,11 +157,24 @@ def _input_limit(spec: Mapping[str, Any]) -> int:
 
 
 def _read_local_input(path: Path, expected_sha256: str, max_bytes: int) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor: int | None = None
     try:
-        with path.open("rb") as source:
+        descriptor = os.open(path, flags)
+        with os.fdopen(descriptor, "rb") as source:
+            descriptor = None
+            if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                raise BuildError("pinned local input must be a regular file")
             content = source.read(max_bytes + 1)
+    except BuildError:
+        raise
     except OSError as error:
-        raise BuildError(f"cannot read pinned local input: {error}") from error
+        raise BuildError(
+            f"cannot read pinned local input (symbolic links are refused): {error}"
+        ) from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
     if len(content) > max_bytes:
         raise BuildError(f"pinned local input exceeds {max_bytes} byte limit")
     if _sha256_bytes(content) != expected_sha256:
@@ -236,6 +256,35 @@ def _reserve_backup_path(path: Path) -> Path:
     return backup
 
 
+def _lock_path(path: Path) -> Path:
+    return path.with_name(f".{path.name}.ugd.lock")
+
+
+@contextmanager
+def _destination_locks(paths: tuple[Path, ...]) -> Iterator[None]:
+    lock_paths = tuple(sorted({_lock_path(path) for path in paths}, key=str))
+    if set(paths) & set(lock_paths):
+        raise BuildError("output or report path collides with a reserved build lock")
+    descriptors: list[int] = []
+    try:
+        for lock_path in lock_paths:
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+            try:
+                descriptor = os.open(lock_path, flags, 0o600)
+                if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+                    os.close(descriptor)
+                    raise BuildError(f"build lock is not a regular file: {lock_path}")
+                descriptors.append(descriptor)
+                fcntl.flock(descriptor, fcntl.LOCK_EX)
+            except OSError as error:
+                raise BuildError(f"cannot acquire build output lock: {error}") from error
+        yield
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
 def _atomic_write_pair(
     first_path: Path,
     first_content: bytes,
@@ -262,17 +311,16 @@ def _atomic_write_pair(
             _replace_path(temporary_paths[path], path)
             installed.add(path)
     except Exception as error:
-        for path in reversed(paths):
-            if path in installed:
-                path.unlink(missing_ok=True)
         rollback_errors = []
         for path in reversed(paths):
             backup = backups.get(path)
-            if backup is not None and backup.exists():
-                try:
+            try:
+                if backup is not None and backup.exists():
                     _replace_path(backup, path)
-                except OSError as rollback_error:
-                    rollback_errors.append(f"{path}: {rollback_error}")
+                elif path in installed:
+                    path.unlink(missing_ok=True)
+            except OSError as rollback_error:
+                rollback_errors.append(f"{path}: {rollback_error}")
         if rollback_errors:
             raise BuildError(
                 "output write failed and rollback was incomplete: " + "; ".join(rollback_errors)
@@ -354,7 +402,7 @@ def _effective_mode(manifest: Mapping[str, Any], override: BuildMode | str | Non
     raw = override if override is not None else manifest.get("build_mode", BuildMode.PRIVATE.value)
     try:
         return BuildMode(raw)
-    except ValueError as error:
+    except (TypeError, ValueError) as error:
         raise BuildError("build_mode must be private or publishable") from error
 
 
@@ -389,6 +437,12 @@ def _validate_revision_policy(
         raise BuildError(
             f"{revision.source_id} revision licence does not match registry publication policy"
         )
+    if build_mode is BuildMode.PUBLISHABLE and definition.attribution not in revision.attribution:
+        raise BuildError(
+            f"{revision.source_id} revision attribution does not include the registry contract"
+        )
+    if build_mode is BuildMode.PUBLISHABLE and revision.license.evidence_url is None:
+        raise BuildError(f"{revision.source_id} revision has no licence evidence URL")
 
 
 def _source_counts(bundle: SourceBundle) -> dict[str, int]:
@@ -409,6 +463,13 @@ def build_from_manifest(
 ) -> dict[str, Any]:
     """Build one deterministic canonical snapshot after all checks succeed."""
     manifest_path = Path(source_manifest).resolve()
+    output_path = Path(output).resolve()
+    report_output_path = Path(report_path).resolve()
+    destination_lock_paths = {_lock_path(output_path), _lock_path(report_output_path)}
+    if output_path == report_output_path or manifest_path in {output_path, report_output_path}:
+        raise BuildError("manifest, output and report paths must be distinct")
+    if manifest_path in destination_lock_paths or {output_path, report_output_path} & destination_lock_paths:
+        raise BuildError("manifest, output or report path collides with a reserved build lock")
     manifest = _load_manifest(manifest_path)
     build_mode = _effective_mode(manifest, mode)
     manifest_directory = manifest_path.parent
@@ -459,6 +520,26 @@ def build_from_manifest(
         input_spec = raw_selection.get("input")
         if not isinstance(input_spec, dict):
             raise BuildError(f"{source_id} content selection requires a pinned input object")
+        has_path = "path" in input_spec
+        has_url = "url" in input_spec
+        if has_url and not has_path and definition.access_mode is not AccessMode.PUBLIC_HTTP:
+            raise BuildError(
+                f"{source_id} access mode {definition.access_mode.value} does not permit remote input"
+            )
+        if has_path != has_url:
+            location_field = "path" if has_path else "cache"
+            if location_field in input_spec:
+                input_location = _safe_relative(
+                    manifest_directory,
+                    input_spec[location_field],
+                    f"{source_id} input {location_field}",
+                )
+                if input_location == manifest_path:
+                    raise BuildError(f"{source_id} {location_field} cannot overwrite the source manifest")
+                if input_location in destination_lock_paths:
+                    raise BuildError(f"{source_id} {location_field} collides with a reserved build lock")
+                if input_location in {output_path, report_output_path}:
+                    raise BuildError("output and report cannot overwrite a pinned input or cache")
         content, input_sha256, pinned_input_path = _materialize_input(
             source_id,
             input_spec,
@@ -479,6 +560,7 @@ def build_from_manifest(
                 "revision_id": revision_id,
                 "selection": selection_mode.value,
                 "input_sha256": input_sha256,
+                "registry": definition.public_metadata(),
                 **bundle.to_dict(),
             }
         )
@@ -493,6 +575,7 @@ def build_from_manifest(
             "source_id": selection["source_id"],
             "revision_id": selection["revision_id"],
             "selection": selection["selection"],
+            "registry": selection["registry"],
         }
         if selection["selection"] == SelectionMode.CONTENT.value:
             bundle = loaded_bundles[(selection["source_id"], selection["revision_id"])]
@@ -534,18 +617,15 @@ def build_from_manifest(
         "sources": source_reports,
     }
 
-    output_path = Path(output).resolve()
-    report_output_path = Path(report_path).resolve()
-    if output_path == report_output_path or manifest_path in {output_path, report_output_path}:
-        raise BuildError("manifest, output and report paths must be distinct")
     if output_path in pinned_input_paths or report_output_path in pinned_input_paths:
         raise BuildError("output and report cannot overwrite a pinned input or cache")
-    _atomic_write_pair(
-        output_path,
-        output_bytes,
-        report_output_path,
-        canonical_json_bytes(report),
-    )
+    with _destination_locks((output_path, report_output_path)):
+        _atomic_write_pair(
+            output_path,
+            output_bytes,
+            report_output_path,
+            canonical_json_bytes(report),
+        )
     return report
 
 

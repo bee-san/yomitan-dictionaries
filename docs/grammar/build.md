@@ -70,9 +70,9 @@ A remote canonical input must use HTTPS, end on an allowlisted source host after
 }
 ```
 
-Use this shape only when that exact canonical document actually exists at the pinned URL. Normally a source adapter acquires the raw pinned source and writes a local canonical JSON file, then the build uses `path`.
+Use this shape only when that exact canonical document actually exists at the pinned URL and the registry declares the source `public-http`. A `local-file` source cannot be upgraded to remote acquisition by a manifest, even when the host appears in its link allowlist. Normally a source adapter acquires the raw pinned source and writes a local canonical JSON file, then the build uses `path`.
 
-Downloads use a 20-second request timeout, at most three attempts, 1 MiB streaming chunks, a 64 MiB default input limit, and a 256 MiB hard limit. Cached bytes are reused only after SHA-256 verification. A bad cache is retained for diagnosis and replaced atomically only after a verified refresh succeeds. Every redirect target is checked against the source allowlist before it is followed, then the final URL is checked again. Authentication embedded in URLs, HTTP, custom ports, unknown hosts, missing pins, oversized input, and hash mismatches fail closed.
+Downloads use a 20-second request timeout, at most three attempts, 1 MiB streaming chunks, a 64 MiB default input limit, and a 256 MiB hard limit. Cached bytes are reused only after SHA-256 verification. A bad cache is retained for diagnosis and replaced atomically only after a verified refresh succeeds. Every redirect target is checked against the source allowlist before it is followed, then the final URL is checked again. Local files are opened as regular files without following a final-component symbolic link, closing the replacement window after path validation. Authentication embedded in URLs, HTTP, custom ports, unknown hosts, missing pins, oversized input, and hash mismatches fail closed.
 
 ## Canonical source document
 
@@ -124,7 +124,7 @@ python scripts/grammar/build.py --source-manifest PATH --output PATH --report PA
 
 `--mode private|publishable` optionally overrides `build_mode`. If neither is supplied, mode is `private`.
 
-The builder validates the complete manifest and every selected input before writing. Duplicate JSON object keys, boolean version values, and output/report paths that collide with the manifest, a pinned local input, or a remote cache fail closed. It then writes canonical JSON with sorted keys, compact separators, UTF-8 text, a trailing newline, registry/source ordering by immutable IDs, and source-internal ordering by explicit order and stable IDs. Output and report replacement is a paired transaction: if either install fails, prior files are restored. Reports contain hashes, counts, policies, and source IDs but no input or output filesystem paths.
+The builder validates the complete manifest and every selected input before writing. Duplicate JSON object keys, boolean version values, and output/report paths that collide with the manifest, a pinned local input, a remote cache, or a reserved destination lock fail closed. A remote cache is preflighted before any download and cannot replace the manifest, output, report, or their lock files. The builder then writes canonical JSON with sorted keys, compact separators, UTF-8 text, a trailing newline, registry/source ordering by immutable IDs, and source-internal ordering by explicit order and stable IDs. Output and report replacement is a paired transaction: per-destination advisory lock files serialize overlapping writers, and if either install fails, prior files are restored. The zero-byte lock files use names such as `.combined.canonical.json.ugd.lock` beside each destination and remain in the ignored build directory for safe reuse. Reports contain hashes, counts, source IDs, and the registry access/import/publication policy for every selection, but no input or output filesystem paths.
 
 The output reports these counts separately:
 
@@ -142,7 +142,7 @@ A report count does not prove preservation. Adapter and integration reports must
 
 `private` permits content only when the registry and source revision both permit local content import. It does not inspect or weaken publication status.
 
-`publishable` permits content only when both the registry and the exact source revision say `publication_mode: allowed`. `denied` and `uncleared` both fail. This means a private build may include `bee-bunpo`, Bunpro, or selected local archives while a publishable build containing any of them is rejected before output is written.
+`publishable` permits content only when both the registry and the exact source revision say `publication_mode: allowed`. `denied` and `uncleared` both fail. The revision must also match the registry licence identifier, include the registry's attribution contract in its source attribution, and provide an HTTPS licence-evidence URL. This means a private build may include `bee-bunpo`, Bunpro, or selected local archives while a publishable build containing any of them is rejected before output is written.
 
 Metadata-only selections never include source bodies. Their public-safe registry fields can remain in a publishable build without claiming source-content inclusion.
 

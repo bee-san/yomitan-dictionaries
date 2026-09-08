@@ -7,6 +7,7 @@ from enum import Enum
 import hashlib
 import json
 import math
+from pathlib import PurePosixPath, PureWindowsPath
 import re
 from types import MappingProxyType
 from typing import Any, Mapping, Sequence
@@ -101,11 +102,24 @@ def _jsonable(value: Any, name: str = "content") -> Any:
     raise ValueError(f"{name} is not JSON-compatible")
 
 
+def _frozen_json(value: Any, name: str = "content") -> Any:
+    validated = _jsonable(value, name)
+    if isinstance(validated, list):
+        return tuple(_frozen_json(item, name) for item in validated)
+    if isinstance(validated, Mapping):
+        return MappingProxyType(
+            {key: _frozen_json(item, name) for key, item in validated.items()}
+        )
+    return validated
+
+
 def _qualified_prefix(source_id: str, revision_id: str) -> str:
     return f"{source_id}:{revision_id}:"
 
 
 def _strict_fields(value: Mapping[str, Any], allowed: set[str], context: str) -> None:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{context} must be an object")
     unknown = set(value) - allowed
     if unknown:
         raise ValueError(f"{context} has unsupported fields: {sorted(unknown)}")
@@ -242,13 +256,13 @@ class Provenance:
     revision_id: str
     source_record_id: str
     locator: str
-    content_sha256: str | None = None
+    content_sha256: str
 
     def __post_init__(self) -> None:
         if not self.source_record_id.startswith(_qualified_prefix(self.source_id, self.revision_id)):
             raise ValueError("source_record_id is not qualified by source_id and revision_id")
         _nonempty(self.locator, "locator")
-        _sha256(self.content_sha256, "provenance content_sha256", optional=True)
+        _sha256(self.content_sha256, "provenance content_sha256")
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "Provenance":
@@ -257,12 +271,14 @@ class Provenance:
             {"source_id", "revision_id", "source_record_id", "locator", "content_sha256"},
             "provenance",
         )
+        if "content_sha256" not in value:
+            raise ValueError("provenance content_sha256 is required")
         return cls(
             source_id=value["source_id"],
             revision_id=value["revision_id"],
             source_record_id=value["source_record_id"],
             locator=value["locator"],
-            content_sha256=value.get("content_sha256"),
+            content_sha256=value["content_sha256"],
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -363,7 +379,7 @@ class ContentBlock:
         object.__setattr__(self, "kind", BlockKind(self.kind))
         if _LANGUAGE.fullmatch(self.language) is None:
             raise ValueError(f"invalid content language: {self.language}")
-        object.__setattr__(self, "content", _jsonable(self.content))
+        object.__setattr__(self, "content", _frozen_json(self.content))
         if not isinstance(self.order, int) or isinstance(self.order, bool) or self.order < 0:
             raise ValueError("block order must be a non-negative integer")
         if not isinstance(self.provenance, Provenance):
@@ -412,8 +428,8 @@ class ExamplePair:
 
     def __post_init__(self) -> None:
         _nonempty(self.example_id, "example_id")
-        object.__setattr__(self, "japanese", _jsonable(self.japanese, "japanese example"))
-        object.__setattr__(self, "translation", _jsonable(self.translation, "translation"))
+        object.__setattr__(self, "japanese", _frozen_json(self.japanese, "japanese example"))
+        object.__setattr__(self, "translation", _frozen_json(self.translation, "translation"))
         if (self.translation is None) != (self.translation_language is None):
             raise ValueError("translation and translation_language must be supplied together")
         if self.translation_language is not None and _LANGUAGE.fullmatch(self.translation_language) is None:
@@ -474,8 +490,16 @@ class MediaRecord:
     def __post_init__(self) -> None:
         _nonempty(self.media_id, "media_id")
         _nonempty(self.source_path, "source_path")
-        if self.source_path.startswith(("/", "\\")) or ".." in self.source_path.replace("\\", "/").split("/"):
-            raise ValueError("media source_path must be safe and relative")
+        posix_path = PurePosixPath(self.source_path)
+        if (
+            "\\" in self.source_path
+            or posix_path.is_absolute()
+            or posix_path.as_posix() != self.source_path
+            or not posix_path.parts
+            or ".." in posix_path.parts
+            or PureWindowsPath(self.source_path).drive
+        ):
+            raise ValueError("media source_path must be safe POSIX-relative path")
         _sha256(self.content_sha256, "media content_sha256")
         if not self.media_type.startswith(("image/", "audio/")):
             raise ValueError("media_type must be an image or audio MIME type")
@@ -524,7 +548,10 @@ class SourceSense:
     links: tuple[SourceLink, ...] = ()
 
     def __post_init__(self) -> None:
-        if not self.source_sense_id.startswith(f"{self.source_record_id}:sense:"):
+        sense_prefix = f"{self.source_record_id}:sense:"
+        if not self.source_sense_id.startswith(sense_prefix) or len(self.source_sense_id) == len(
+            sense_prefix
+        ):
             raise ValueError("source_sense_id must be qualified by source_record_id")
         object.__setattr__(self, "partition_status", PartitionStatus(self.partition_status))
         if self.concept_ref is not None:
@@ -539,9 +566,17 @@ class SourceSense:
         if len(set(self.level_labels)) != len(self.level_labels) or len(set(self.register_labels)) != len(self.register_labels):
             raise ValueError("source-scoped labels must be unique")
         for block in self.blocks:
+            block_prefix = f"{self.source_sense_id}:block:"
+            if not block.block_id.startswith(block_prefix) or len(block.block_id) == len(block_prefix):
+                raise ValueError("block_id must be qualified by source_sense_id")
             if block.provenance.source_record_id != self.source_record_id:
                 raise ValueError("block provenance points to another source record")
         for example in self.examples:
+            example_prefix = f"{self.source_sense_id}:example:"
+            if not example.example_id.startswith(example_prefix) or len(example.example_id) == len(
+                example_prefix
+            ):
+                raise ValueError("example_id must be qualified by source_sense_id")
             if example.provenance.source_record_id != self.source_record_id:
                 raise ValueError("example provenance points to another source record")
 
@@ -603,6 +638,8 @@ class CanonicalSense:
         if not members or len(set(members)) != len(members):
             raise ValueError("source_sense_ids must be non-empty and unique")
         object.__setattr__(self, "source_sense_ids", members)
+        if self.sense_id != canonical_sense_id(members):
+            raise ValueError("sense_id must match the exact source_sense_ids membership")
         if self.concept_id is not None:
             _nonempty(self.concept_id, "concept_id")
         if self.ambiguity not in {"resolved", "needs-review"}:
@@ -643,8 +680,9 @@ class SourceBundle:
         record_ids = [record.source_record_id for record in self.records]
         if len(record_ids) != len(set(record_ids)):
             raise ValueError("duplicate source_record_id")
+        record_prefix = f"{self.source_revision.qualified_prefix}record:"
         for record_id in record_ids:
-            if not record_id.startswith(self.source_revision.qualified_prefix):
+            if not record_id.startswith(record_prefix) or len(record_id) == len(record_prefix):
                 raise ValueError("source_record_id belongs to another source revision")
         sense_ids = [sense.source_sense_id for sense in self.senses]
         if len(sense_ids) != len(set(sense_ids)):
@@ -670,6 +708,9 @@ class SourceBundle:
         if len(media_ids) != len(set(media_ids)):
             raise ValueError("duplicate media_id")
         for item in self.media:
+            media_prefix = f"{self.source_revision.qualified_prefix}media:"
+            if not item.media_id.startswith(media_prefix) or len(item.media_id) == len(media_prefix):
+                raise ValueError("media_id must be qualified by its source revision")
             if item.provenance.source_record_id not in known_records:
                 raise ValueError("media references an unknown source record")
             if (item.provenance.source_id, item.provenance.revision_id) != (

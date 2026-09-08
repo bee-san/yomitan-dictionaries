@@ -6,6 +6,8 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from unittest.mock import patch
 from urllib.error import URLError
@@ -44,19 +46,28 @@ SHA_A = "a" * 64
 SHA_B = "b" * 64
 
 
-def revision_dict(*, publication_mode="denied"):
+def revision_dict(
+    *,
+    source_id="bee-bunpo",
+    revision_id="fixture-r1",
+    access_mode="local-file",
+    publication_mode="denied",
+    attribution="Synthetic fixture attribution",
+    license_identifier=None,
+    license_evidence_url=None,
+):
     return {
-        "source_id": "bee-bunpo",
-        "revision_id": "fixture-r1",
+        "source_id": source_id,
+        "revision_id": revision_id,
         "content_sha256": SHA_A,
         "languages": ["ja", "en"],
-        "attribution": "Synthetic fixture attribution",
+        "attribution": attribution,
         "license": {
-            "identifier": None,
+            "identifier": license_identifier,
             "notice": "Synthetic fixture; no third-party source text.",
-            "evidence_url": None,
+            "evidence_url": license_evidence_url,
         },
-        "access_mode": "local-file",
+        "access_mode": access_mode,
         "import_mode": "content",
         "publication_mode": publication_mode,
         "generated": False,
@@ -64,12 +75,21 @@ def revision_dict(*, publication_mode="denied"):
     }
 
 
-def source_bundle(*, publication_mode="denied"):
-    record_id = "bee-bunpo:fixture-r1:record:1"
+def source_bundle(
+    *,
+    source_id="bee-bunpo",
+    revision_id="fixture-r1",
+    access_mode="local-file",
+    publication_mode="denied",
+    attribution="Synthetic fixture attribution",
+    license_identifier=None,
+    license_evidence_url=None,
+):
+    record_id = f"{source_id}:{revision_id}:record:1"
     sense_id = f"{record_id}:sense:1"
     provenance = {
-        "source_id": "bee-bunpo",
-        "revision_id": "fixture-r1",
+        "source_id": source_id,
+        "revision_id": revision_id,
         "source_record_id": record_id,
         "locator": "field:meaning",
         "content_sha256": SHA_B,
@@ -77,7 +97,15 @@ def source_bundle(*, publication_mode="denied"):
     return {
         "format": "ugd-canonical-source",
         "format_version": 1,
-        "source_revision": revision_dict(publication_mode=publication_mode),
+        "source_revision": revision_dict(
+            source_id=source_id,
+            revision_id=revision_id,
+            access_mode=access_mode,
+            publication_mode=publication_mode,
+            attribution=attribution,
+            license_identifier=license_identifier,
+            license_evidence_url=license_evidence_url,
+        ),
         "records": [
             {
                 "source_record_id": record_id,
@@ -114,6 +142,87 @@ def source_bundle(*, publication_mode="denied"):
 
 
 class CanonicalModelTests(unittest.TestCase):
+    def test_nested_canonical_content_is_immutable_after_validation(self):
+        bundle = SourceBundle.from_dict(source_bundle())
+        block = bundle.senses[0].blocks[0]
+
+        with self.assertRaises((AttributeError, TypeError)):
+            block.content.append("mutation")
+
+        self.assertEqual(block.to_dict()["content"], ["Synthetic explanation"])
+
+    def test_content_provenance_requires_an_exact_hash(self):
+        value = source_bundle()
+        del value["senses"][0]["blocks"][0]["provenance"]["content_sha256"]
+
+        with self.assertRaisesRegex(ValueError, "content_sha256"):
+            SourceBundle.from_dict(value)
+
+    def test_block_id_must_be_qualified_by_its_source_sense(self):
+        value = source_bundle()
+        value["senses"][0]["blocks"][0]["block_id"] = "block:meaning"
+
+        with self.assertRaisesRegex(ValueError, "block_id.*source_sense_id"):
+            SourceBundle.from_dict(value)
+
+    def test_example_id_must_be_qualified_by_its_source_sense(self):
+        value = source_bundle()
+        provenance = dict(value["senses"][0]["blocks"][0]["provenance"])
+        value["senses"][0]["examples"] = [
+            {
+                "example_id": "example:1",
+                "japanese": "例",
+                "translation": "Synthetic example",
+                "translation_language": "en",
+                "order": 1,
+                "provenance": provenance,
+                "generated": False,
+            }
+        ]
+
+        with self.assertRaisesRegex(ValueError, "example_id.*source_sense_id"):
+            SourceBundle.from_dict(value)
+
+    def test_media_id_must_be_qualified_by_its_source_revision(self):
+        value = source_bundle()
+        provenance = dict(value["senses"][0]["blocks"][0]["provenance"])
+        value["media"] = [
+            {
+                "media_id": "media:chart",
+                "source_path": "media/chart.png",
+                "content_sha256": SHA_B,
+                "media_type": "image/png",
+                "byte_count": 1,
+                "provenance": provenance,
+            }
+        ]
+
+        with self.assertRaisesRegex(ValueError, "media_id.*source revision"):
+            SourceBundle.from_dict(value)
+
+    def test_media_path_rejects_windows_absolute_paths(self):
+        value = source_bundle()
+        provenance = dict(value["senses"][0]["blocks"][0]["provenance"])
+        value["media"] = [
+            {
+                "media_id": "bee-bunpo:fixture-r1:media:chart",
+                "source_path": r"C:\\Users\\alice\\private.png",
+                "content_sha256": SHA_B,
+                "media_type": "image/png",
+                "byte_count": 1,
+                "provenance": provenance,
+            }
+        ]
+
+        with self.assertRaisesRegex(ValueError, "safe POSIX-relative"):
+            SourceBundle.from_dict(value)
+
+    def test_canonical_sense_id_must_match_exact_membership(self):
+        source_sense_id = "bee-bunpo:fixture-r1:record:1:sense:1"
+
+        with self.assertRaisesRegex(ValueError, "sense_id.*source_sense_ids"):
+            CanonicalSense("arbitrary-id", "〜ために", (source_sense_id,), "purpose")
+
     def test_source_record_field_hashes_are_immutable(self):
         record = SourceRecord(
             "bee-bunpo:fixture-r1:record:1",
@@ -311,21 +420,32 @@ class BuildCliTests(unittest.TestCase):
         )
         self.input_sha256 = hashlib.sha256(self.input_path.read_bytes()).hexdigest()
 
-    def write_manifest(self, *, build_mode=None, input_sha256=None, path="source.json"):
+    def write_manifest(
+        self,
+        *,
+        build_mode=None,
+        input_sha256=None,
+        path="source.json",
+        source_id="bee-bunpo",
+        revision_id="fixture-r1",
+        input_spec=None,
+    ):
+        if input_spec is None:
+            input_spec = {
+                "path": path,
+                "sha256": input_sha256 or self.input_sha256,
+            }
         manifest = {
             "format": "ugd-source-manifest",
             "format_version": 1,
             "registry_version": REGISTRY_VERSION,
             "sources": [
                 {
-                    "source_id": "bee-bunpo",
-                    "revision_id": "fixture-r1",
+                    "source_id": source_id,
+                    "revision_id": revision_id,
                     "selection": "content",
                     "source_content_sha256": SHA_A,
-                    "input": {
-                        "path": path,
-                        "sha256": input_sha256 or self.input_sha256,
-                    },
+                    "input": input_spec,
                 },
                 {
                     "source_id": "imabi",
@@ -336,9 +456,9 @@ class BuildCliTests(unittest.TestCase):
         }
         if build_mode is not None:
             manifest["build_mode"] = build_mode
-        path = self.root / "manifest.json"
-        path.write_text(json.dumps(manifest), encoding="utf-8")
-        return path
+        manifest_path = self.root / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        return manifest_path
 
     def test_private_is_default_and_all_inputs_are_pinned(self):
         manifest = self.write_manifest()
@@ -354,6 +474,10 @@ class BuildCliTests(unittest.TestCase):
         self.assertEqual(built["metadata_source_count"], 1)
         self.assertEqual(built["sources"][0]["source_revision"]["content_sha256"], SHA_A)
         self.assertEqual(report["output_sha256"], hashlib.sha256(output.read_bytes()).hexdigest())
+        report_sources = {item["source_id"]: item for item in report["sources"]}
+        self.assertEqual(report_sources["bee-bunpo"]["registry"]["access_mode"], "local-file")
+        self.assertEqual(report_sources["bee-bunpo"]["registry"]["import_mode"], "content")
+        self.assertEqual(report_sources["bee-bunpo"]["registry"]["publication_mode"], "denied")
         self.assertNotIn(str(self.root), output.read_text(encoding="utf-8"))
         self.assertNotIn(str(self.root), report_path.read_text(encoding="utf-8"))
 
@@ -383,6 +507,28 @@ class BuildCliTests(unittest.TestCase):
                         self.root / "report.json",
                     )
 
+    def test_malformed_nested_object_is_reported_as_build_error(self):
+        value = source_bundle()
+        value["source_revision"] = [
+            "source_id",
+            "revision_id",
+            "content_sha256",
+            "languages",
+            "attribution",
+            "license",
+            "access_mode",
+            "import_mode",
+            "publication_mode",
+            "generated",
+            "provenance_note",
+        ]
+        self.input_path.write_text(json.dumps(value), encoding="utf-8")
+        self.input_sha256 = hashlib.sha256(self.input_path.read_bytes()).hexdigest()
+        manifest = self.write_manifest()
+
+        with self.assertRaisesRegex(BuildError, "model validation"):
+            build_from_manifest(manifest, self.root / "build.json", self.root / "report.json")
+
     def test_publishable_build_refuses_uncleared_content_before_writing(self):
         manifest = self.write_manifest(build_mode="publishable")
         output = self.root / "build.json"
@@ -409,6 +555,60 @@ class BuildCliTests(unittest.TestCase):
                 self.root / "report.json",
             )
 
+    def test_publishable_build_requires_registry_attribution_contract(self):
+        value = source_bundle(
+            source_id="yokubi",
+            access_mode="public-http",
+            publication_mode="allowed",
+            attribution="Wrong attribution",
+            license_identifier="CC-BY-4.0",
+            license_evidence_url="https://github.com/Morgawr/yokubi/blob/main/LICENSE",
+        )
+        self.input_path.write_text(json.dumps(value), encoding="utf-8")
+        self.input_sha256 = hashlib.sha256(self.input_path.read_bytes()).hexdigest()
+        manifest = self.write_manifest(source_id="yokubi", build_mode="publishable")
+
+        with self.assertRaisesRegex(BuildError, "attribution"):
+            build_from_manifest(manifest, self.root / "build.json", self.root / "report.json")
+
+    def test_publishable_build_requires_licence_evidence(self):
+        value = source_bundle(
+            source_id="yokubi",
+            access_mode="public-http",
+            publication_mode="allowed",
+            attribution=get_source("yokubi").attribution,
+            license_identifier="CC-BY-4.0",
+        )
+        self.input_path.write_text(json.dumps(value), encoding="utf-8")
+        self.input_sha256 = hashlib.sha256(self.input_path.read_bytes()).hexdigest()
+        manifest = self.write_manifest(source_id="yokubi", build_mode="publishable")
+
+        with self.assertRaisesRegex(BuildError, "licence evidence"):
+            build_from_manifest(manifest, self.root / "build.json", self.root / "report.json")
+
+    def test_publishable_build_accepts_fully_attributed_open_content(self):
+        value = source_bundle(
+            source_id="yokubi",
+            access_mode="public-http",
+            publication_mode="allowed",
+            attribution=get_source("yokubi").attribution,
+            license_identifier="CC-BY-4.0",
+            license_evidence_url="https://github.com/Morgawr/yokubi/blob/main/LICENSE",
+        )
+        self.input_path.write_text(json.dumps(value), encoding="utf-8")
+        self.input_sha256 = hashlib.sha256(self.input_path.read_bytes()).hexdigest()
+        manifest = self.write_manifest(source_id="yokubi", build_mode="publishable")
+
+        report = build_from_manifest(
+            manifest,
+            self.root / "build.json",
+            self.root / "report.json",
+        )
+
+        self.assertEqual(report["build_mode"], "publishable")
+        report_sources = {item["source_id"]: item for item in report["sources"]}
+        self.assertEqual(report_sources["yokubi"]["registry"]["publication_mode"], "allowed")
+
     def test_hash_mismatch_fails_before_writing(self):
         manifest = self.write_manifest(input_sha256="0" * 64)
         output = self.root / "build.json"
@@ -421,6 +621,80 @@ class BuildCliTests(unittest.TestCase):
         manifest = self.write_manifest(path="../source.json")
         with self.assertRaisesRegex(BuildError, "escape"):
             build_from_manifest(manifest, self.root / "build.json", self.root / "report.json")
+
+    def test_local_reader_rejects_a_post_validation_symlink_swap(self):
+        target = self.root / "outside.json"
+        target.write_bytes(self.input_path.read_bytes())
+        link = self.root / "swapped.json"
+        link.symlink_to(target)
+
+        with self.assertRaisesRegex(BuildError, "symbolic link"):
+            builder._read_local_input(link, self.input_sha256, 1024 * 1024)
+
+    def test_local_file_source_cannot_select_a_remote_input(self):
+        manifest = self.write_manifest(
+            input_spec={
+                "url": "https://github.com/bee-san/yomitan-dictionaries/source.json",
+                "cache": "cache.json",
+                "sha256": self.input_sha256,
+            }
+        )
+
+        with (
+            patch.object(builder, "_download_once") as download,
+            self.assertRaisesRegex(BuildError, "local-file.*remote"),
+        ):
+            build_from_manifest(manifest, self.root / "build.json", self.root / "report.json")
+
+        download.assert_not_called()
+
+    def test_remote_cache_cannot_overwrite_manifest_or_outputs(self):
+        value = source_bundle(
+            source_id="yokubi",
+            access_mode="public-http",
+            publication_mode="allowed",
+            attribution=get_source("yokubi").attribution,
+            license_identifier="CC-BY-4.0",
+            license_evidence_url="https://github.com/Morgawr/yokubi/blob/main/LICENSE",
+        )
+        content = json.dumps(value).encode("utf-8")
+        content_sha256 = hashlib.sha256(content).hexdigest()
+        manifest = self.write_manifest(
+            source_id="yokubi",
+            input_spec={
+                "url": "https://raw.githubusercontent.com/Morgawr/yokubi/main/source.json",
+                "cache": "manifest.json",
+                "sha256": content_sha256,
+            },
+        )
+        original_manifest = manifest.read_bytes()
+
+        with (
+            patch.object(builder, "_download_once", return_value=content) as download,
+            self.assertRaisesRegex(BuildError, "cache.*manifest|manifest.*cache"),
+        ):
+            build_from_manifest(manifest, self.root / "build.json", self.root / "report.json")
+
+        download.assert_not_called()
+        self.assertEqual(manifest.read_bytes(), original_manifest)
+
+    def test_remote_cache_cannot_overwrite_a_reserved_output_lock(self):
+        manifest = self.write_manifest(
+            source_id="yokubi",
+            input_spec={
+                "url": "https://raw.githubusercontent.com/Morgawr/yokubi/main/source.json",
+                "cache": ".build.json.ugd.lock",
+                "sha256": self.input_sha256,
+            },
+        )
+
+        with (
+            patch.object(builder, "_download_once") as download,
+            self.assertRaisesRegex(BuildError, "reserved build lock"),
+        ):
+            build_from_manifest(manifest, self.root / "build.json", self.root / "report.json")
+
+        download.assert_not_called()
 
     def test_output_cannot_overwrite_a_pinned_input(self):
         manifest = self.write_manifest()
@@ -486,6 +760,89 @@ class BuildCliTests(unittest.TestCase):
 
         self.assertEqual(output.read_bytes(), b"previous output")
         self.assertEqual(report.read_bytes(), b"previous report")
+
+    def test_rollback_restores_backups_without_unlinking_installed_files(self):
+        manifest = self.write_manifest()
+        output = self.root / "build.json"
+        report = self.root / "report.json"
+        output.write_bytes(b"previous output")
+        report.write_bytes(b"previous report")
+        original_replace = builder._replace_path
+        original_unlink = Path.unlink
+        failed = False
+
+        def fail_report_install(source, destination):
+            nonlocal failed
+            if destination == report.resolve() and not failed:
+                failed = True
+                raise OSError("simulated report write failure")
+            return original_replace(source, destination)
+
+        def reject_output_unlink(path, *args, **kwargs):
+            if path == output.resolve():
+                raise PermissionError("installed output must be replaced from backup")
+            return original_unlink(path, *args, **kwargs)
+
+        with (
+            patch.object(builder, "_replace_path", side_effect=fail_report_install),
+            patch.object(Path, "unlink", reject_output_unlink),
+            self.assertRaisesRegex(OSError, "simulated report write failure"),
+        ):
+            build_from_manifest(manifest, output, report)
+
+        self.assertEqual(output.read_bytes(), b"previous output")
+        self.assertEqual(report.read_bytes(), b"previous report")
+
+    def test_concurrent_builds_cannot_mix_output_and_report_pairs(self):
+        manifest_template = json.loads(self.write_manifest().read_text(encoding="utf-8"))
+        manifests = []
+        for label in ("a", "b"):
+            value = source_bundle()
+            value["records"][0]["raw_expression"] = f"synthetic-{label}"
+            source_path = self.root / f"source-{label}.json"
+            source_path.write_text(json.dumps(value, sort_keys=True), encoding="utf-8")
+            manifest_value = json.loads(json.dumps(manifest_template))
+            manifest_value["sources"][0]["input"] = {
+                "path": source_path.name,
+                "sha256": hashlib.sha256(source_path.read_bytes()).hexdigest(),
+            }
+            manifest_path = self.root / f"manifest-{label}.json"
+            manifest_path.write_text(json.dumps(manifest_value), encoding="utf-8")
+            manifests.append(manifest_path)
+
+        output = self.root / "shared-build.json"
+        report = self.root / "shared-report.json"
+        first_output_installed = threading.Event()
+        original_replace = builder._replace_path
+        errors = []
+
+        def delay_first_writer(source, destination):
+            result = original_replace(source, destination)
+            if destination == output.resolve() and threading.current_thread().name == "build-a":
+                first_output_installed.set()
+                time.sleep(0.2)
+            return result
+
+        def run_build(manifest):
+            try:
+                build_from_manifest(manifest, output, report)
+            except Exception as error:  # pragma: no cover - asserted below
+                errors.append(error)
+
+        with patch.object(builder, "_replace_path", side_effect=delay_first_writer):
+            first = threading.Thread(target=run_build, args=(manifests[0],), name="build-a")
+            first.start()
+            self.assertTrue(first_output_installed.wait(timeout=2))
+            second = threading.Thread(target=run_build, args=(manifests[1],), name="build-b")
+            second.start()
+            first.join(timeout=3)
+            second.join(timeout=3)
+
+        self.assertFalse(first.is_alive())
+        self.assertFalse(second.is_alive())
+        self.assertEqual(errors, [])
+        report_value = json.loads(report.read_text(encoding="utf-8"))
+        self.assertEqual(report_value["output_sha256"], hashlib.sha256(output.read_bytes()).hexdigest())
 
     def test_build_output_is_deterministic(self):
         manifest = self.write_manifest()
