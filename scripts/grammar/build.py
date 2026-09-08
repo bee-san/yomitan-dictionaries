@@ -62,6 +62,7 @@ HARD_MAX_INPUT_BYTES = 256 * 1024 * 1024
 DOWNLOAD_TIMEOUT_SECONDS = 20
 DOWNLOAD_RETRIES = 2
 CHUNK_BYTES = 1024 * 1024
+LOCK_ROOT = (Path(tempfile.gettempdir()) / "bee-grammar-build-locks-v1").resolve()
 
 
 class BuildError(RuntimeError):
@@ -156,15 +157,32 @@ def _input_limit(spec: Mapping[str, Any]) -> int:
     return value
 
 
+def _open_regular_nofollow(path: Path) -> int:
+    if not path.is_absolute() or not path.parts:
+        raise BuildError("pinned local input path must be absolute after validation")
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    file_flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    directory_descriptor = os.open(path.anchor, directory_flags)
+    try:
+        for component in path.parts[1:-1]:
+            next_descriptor = os.open(component, directory_flags, dir_fd=directory_descriptor)
+            os.close(directory_descriptor)
+            directory_descriptor = next_descriptor
+        descriptor = os.open(path.name, file_flags, dir_fd=directory_descriptor)
+    finally:
+        os.close(directory_descriptor)
+    if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+        os.close(descriptor)
+        raise BuildError("pinned local input must be a regular file")
+    return descriptor
+
+
 def _read_local_input(path: Path, expected_sha256: str, max_bytes: int) -> bytes:
-    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
     descriptor: int | None = None
     try:
-        descriptor = os.open(path, flags)
+        descriptor = _open_regular_nofollow(path)
         with os.fdopen(descriptor, "rb") as source:
             descriptor = None
-            if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
-                raise BuildError("pinned local input must be a regular file")
             content = source.read(max_bytes + 1)
     except BuildError:
         raise
@@ -256,8 +274,17 @@ def _reserve_backup_path(path: Path) -> Path:
     return backup
 
 
+def _inside_lock_namespace(path: Path) -> bool:
+    try:
+        path.relative_to(LOCK_ROOT)
+    except ValueError:
+        return False
+    return True
+
+
 def _lock_path(path: Path) -> Path:
-    return path.with_name(f".{path.name}.ugd.lock")
+    digest = hashlib.sha256(str(path).encode("utf-8")).hexdigest()
+    return LOCK_ROOT / f"{digest}.lock"
 
 
 @contextmanager
@@ -468,8 +495,8 @@ def build_from_manifest(
     destination_lock_paths = {_lock_path(output_path), _lock_path(report_output_path)}
     if output_path == report_output_path or manifest_path in {output_path, report_output_path}:
         raise BuildError("manifest, output and report paths must be distinct")
-    if manifest_path in destination_lock_paths or {output_path, report_output_path} & destination_lock_paths:
-        raise BuildError("manifest, output or report path collides with a reserved build lock")
+    if any(_inside_lock_namespace(path) for path in (manifest_path, output_path, report_output_path)):
+        raise BuildError("manifest, output and report must stay outside the reserved build lock namespace")
     manifest = _load_manifest(manifest_path)
     build_mode = _effective_mode(manifest, mode)
     manifest_directory = manifest_path.parent
@@ -536,6 +563,10 @@ def build_from_manifest(
                 )
                 if input_location == manifest_path:
                     raise BuildError(f"{source_id} {location_field} cannot overwrite the source manifest")
+                if _inside_lock_namespace(input_location):
+                    raise BuildError(
+                        f"{source_id} {location_field} is inside the reserved build lock namespace"
+                    )
                 if input_location in destination_lock_paths:
                     raise BuildError(f"{source_id} {location_field} collides with a reserved build lock")
                 if input_location in {output_path, report_output_path}:

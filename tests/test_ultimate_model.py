@@ -678,23 +678,14 @@ class BuildCliTests(unittest.TestCase):
         download.assert_not_called()
         self.assertEqual(manifest.read_bytes(), original_manifest)
 
-    def test_remote_cache_cannot_overwrite_a_reserved_output_lock(self):
-        manifest = self.write_manifest(
-            source_id="yokubi",
-            input_spec={
-                "url": "https://raw.githubusercontent.com/Morgawr/yokubi/main/source.json",
-                "cache": ".build.json.ugd.lock",
-                "sha256": self.input_sha256,
-            },
-        )
+    def test_outputs_cannot_enter_the_reserved_build_lock_namespace(self):
+        manifest = self.write_manifest()
+        output = builder.LOCK_ROOT / "attacker-output.json"
 
-        with (
-            patch.object(builder, "_download_once") as download,
-            self.assertRaisesRegex(BuildError, "reserved build lock"),
-        ):
-            build_from_manifest(manifest, self.root / "build.json", self.root / "report.json")
+        with self.assertRaisesRegex(BuildError, "reserved build lock namespace"):
+            build_from_manifest(manifest, output, self.root / "report.json")
 
-        download.assert_not_called()
+        self.assertFalse(output.exists())
 
     def test_output_cannot_overwrite_a_pinned_input(self):
         manifest = self.write_manifest()
