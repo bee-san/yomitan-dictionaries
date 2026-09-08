@@ -163,6 +163,15 @@
       "lookup_entries": 1515,
       "bytes": 197016,
       "sha256": "a1bd707e8bc8f37691970816a5837ef0a8fa0da0ff8b90632adbb937262d3cf4"
+    },
+    {
+      "file": "bunpo-yomitan.zip",
+      "title": "文法",
+      "revision": "2026.09.08-v1",
+      "description": "534 grammar notes with Japanese explanations, 4,630 source examples, 2,670 separately labelled AI bilingual example pairs, furigana and two source images. Includes 790 additional lookup rows derived from source notation.",
+      "lookup_entries": 1324,
+      "bytes": 1095259,
+      "sha256": "67f82da8316e0c9c33346bc0480b7b15c5ebb6b85c8c41bdf9ca487629f931f6"
     }
   ]
 }

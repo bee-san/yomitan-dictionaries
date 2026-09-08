@@ -3,7 +3,7 @@
 Custom Japanese dictionaries for Yomitan, covering places, culture, food, folklore, poetry, names, geography and grammar.
 
 [![Latest release](https://img.shields.io/github/v/release/bee-san/yomitan-dictionaries?label=download)](https://github.com/bee-san/yomitan-dictionaries/releases/latest)
-[![Dictionaries](https://img.shields.io/badge/dictionaries-18-6f42c1)](https://github.com/bee-san/yomitan-dictionaries/releases)
+[![Dictionaries](https://img.shields.io/badge/dictionaries-19-6f42c1)](https://github.com/bee-san/yomitan-dictionaries/releases)
 [![Yomitan validation](https://github.com/bee-san/yomitan-dictionaries/actions/workflows/validate.yml/badge.svg)](https://github.com/bee-san/yomitan-dictionaries/actions/workflows/validate.yml)
 
 The ZIP files are published as [GitHub release assets](https://github.com/bee-san/yomitan-dictionaries/releases/latest), not committed to Git. Each archive is ready to import directly into Yomitan. Source and attribution information appears in `index.json` and, where available, dedicated manifests inside the archive.
@@ -39,8 +39,9 @@ Downloading or syncing a ZIP does not automatically import it into Yomitan.
 | **Japanese Kamon Encyclopedia** | 426 family-crest blazons with translations, readings, motif breakdowns and 748 Edo/Wikimedia illustrations | 426 | 23.5 MB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/japanese-kamon-yomitan.zip) |
 | **National Parks of Japan** | All 35 current national parks with official readings, overviews, designation data, prefectures and photographs | 70 | 7.9 MB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/japanese-national-parks-yomitan.zip) |
 | **Onomanabi - Japanese Onomatopoeia** | 1,515 onomatopoeia entries with readings, categories and native pitch accents; 838 have definitions and bilingual examples, and 677 are explicitly marked as missing definitions | 1,515 | 197 KB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/onomanabi-yomitan.zip) |
+| **文法** | 534 grammar notes with explanations, furigana, 4,630 original examples, 2,670 labelled AI bilingual example pairs and two source images; extra lookup aliases preserve source notation | 1,324 | 1.1 MB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/bunpo-yomitan.zip) |
 
-The complete release is 693.3 MB. `CATALOGUE.json` provides machine-readable titles, revisions, sizes and SHA-256 hashes.
+The complete release is 694.4 MB. `CATALOGUE.json` provides machine-readable titles, revisions, sizes and SHA-256 hashes.
 
 ## A little more about each dictionary
 
@@ -118,11 +119,19 @@ Converted from the owner's Onomanabi Anki deck. All 1,515 words and readings are
 
 The owner confirmed authorship and authorised publication. No blanket downstream reuse licence has been specified. Anki animations, CSS and device TTS are omitted; textual motion labels remain. `SOURCE.json` records the source hash, counts and field mapping.
 
+### 文法
+
+All 534 source notes are preserved, including repeated headwords with different explanations. They contain 4,630 original Japanese examples and 2,670 source AI-generated bilingual example pairs, plus meanings, connection rules, JLPT labels, register, nuance and related grammar. Furigana and both referenced images are retained. Every AI section remains explicitly labelled as generated and not independently verified.
+
+There are 1,324 lookup rows: 534 source rows and 790 additional aliases, covering 1,260 distinct search keys. Aliases use printed alternatives, optional particles and readings, or remove a leading attachment marker. Discontinuous patterns and A/B/N/V placeholders are not guessed or joined into invented Japanese, so some patterns need a manual search using their notation. No readings or meanings were invented.
+
+Source links to 日本語NET are retained. The deck's third-party text/image redistribution terms are not established by this conversion; publication at the collection owner's request does not grant a new reuse licence. The bundled font, Anki templates, CSS, JavaScript, TTS and review history are omitted. `SOURCE.json` and `RIGHTS.txt` document these limits.
+
 ## Rights and source status
 
 These are custom dictionary compilations, not claims of ownership over the underlying source material. There is no blanket licence covering every archive. Each ZIP's embedded notices take precedence.
 
-The collection owner explicitly authorised publication of all 18 archives. That authorisation does not replace third-party permission or grant downstream reuse rights. Several archives retain unresolved source-deck provenance, private-study media warnings or source-page-dependent licence requirements. These limits are documented above and inside the affected archives rather than being hidden behind a blanket licence.
+The collection owner explicitly authorised publication of all 19 archives. That authorisation does not replace third-party permission or grant downstream reuse rights. Several archives retain unresolved source-deck provenance, private-study media warnings or source-page-dependent licence requirements. These limits are documented above and inside the affected archives rather than being hidden behind a blanket licence.
 
 If you redistribute an archive or reuse its contents, preserve all attribution files and follow every upstream licence and restriction named inside it.
 
@@ -130,7 +139,7 @@ If you redistribute an archive or reuse its contents, preserve all attribution f
 
 Every published asset passes a complete ZIP CRC test, metadata and checksum checks, lookup-entry counts, contiguous bank numbering, safe path checks and media-reference checks.
 
-GitHub Actions downloads all 18 published archives, imports each one with Yomitan's official importer, and queries a real term from every imported dictionary. Change checks use a pinned compatibility commit for repeatable results. A monthly check follows Yomitan's current default branch to catch future importer incompatibilities.
+GitHub Actions downloads all 19 published archives, imports each one with Yomitan's official importer, and queries a real term from every imported dictionary. Change checks use a pinned compatibility commit for repeatable results. A monthly check follows Yomitan's current default branch to catch future importer incompatibilities.
 
 After downloading the assets and `CHECKSUMS.sha256` into the same directory, verify them with:
 
@@ -141,6 +150,7 @@ shasum -a 256 -c CHECKSUMS.sha256
 Repository checks can be run locally with:
 
 ```bash
+python3 -m pip install zstandard==0.25.0  # Needed for Python 3.12/3.13; optional on 3.14
 python3 -m unittest discover -s tests -v
 python3 scripts/validate_release.py --assets-dir ./release-assets
 ```
@@ -153,3 +163,12 @@ python3 scripts/convert_onomanabi.py Onomanabi_1.apkg onomanabi-yomitan.zip \
 ```
 
 Only supply `--source-owner` after the named owner confirms ownership and publication permission. Private source decks and Anki review history are not committed.
+
+To reproduce the grammar build from the supplied modern-format deck:
+
+```bash
+python3 scripts/convert_bunpo.py 文法.apkg bunpo-yomitan.zip \
+  --revision 2026.09.08-v1 --report conversion-report.json
+```
+
+The report is local audit evidence, not an additional release asset.
