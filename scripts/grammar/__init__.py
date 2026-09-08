@@ -1,0 +1,46 @@
+"""Canonical grammar model, source registry, and reproducible build foundation."""
+
+from .model import (
+    AccessMode,
+    BlockKind,
+    BuildMode,
+    CanonicalSense,
+    ContentBlock,
+    ExamplePair,
+    ImportMode,
+    LicenseInfo,
+    MediaRecord,
+    PartitionStatus,
+    Provenance,
+    PublicationMode,
+    SelectionMode,
+    SourceBundle,
+    SourceRecord,
+    SourceRevision,
+    SourceSense,
+    canonical_sense_id,
+)
+from .registry import REGISTRY_VERSION, SOURCE_REGISTRY
+
+__all__ = [
+    "AccessMode",
+    "BlockKind",
+    "BuildMode",
+    "CanonicalSense",
+    "ContentBlock",
+    "ExamplePair",
+    "ImportMode",
+    "LicenseInfo",
+    "MediaRecord",
+    "PartitionStatus",
+    "Provenance",
+    "PublicationMode",
+    "REGISTRY_VERSION",
+    "SOURCE_REGISTRY",
+    "SelectionMode",
+    "SourceBundle",
+    "SourceRecord",
+    "SourceRevision",
+    "SourceSense",
+    "canonical_sense_id",
+]
