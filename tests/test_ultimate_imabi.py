@@ -31,6 +31,12 @@ class ImabiLinkOnlyTests(unittest.TestCase):
 
         self.assertEqual(index["mode"], "metadata-link-only")
         self.assertEqual(index["coverage"], "partial-audited")
+        self.assertEqual(index["content_status"], "not-included-pending-follow-up")
+        self.assertEqual(
+            index["permission_basis"],
+            "user-reported-project-specific-author-approval",
+        )
+        self.assertEqual(index["publication_status"], "not-authorized")
         self.assertEqual(index["reference_count"], 6)
         self.assertEqual(index["lesson_body_count"], 0)
         self.assertEqual(index["content_block_count"], 0)
