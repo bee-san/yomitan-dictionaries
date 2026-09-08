@@ -281,6 +281,10 @@ class BunproAdapterTests(unittest.TestCase):
         self.assertEqual(report["expected_record_count"], 3)
         self.assertEqual(report["imported_record_count"], 3)
         self.assertEqual(report["rejected_record_count"], 0)
+        self.assertEqual(report["permission_basis"], "user-reported-project-permission")
+        self.assertEqual(report["publication_mode"], "denied")
+        self.assertEqual(bundle.source_revision.publication_mode.value, "denied")
+        self.assertIn("user-reported permission", bundle.source_revision.attribution)
         self.assertEqual(
             set(report["expected_source_record_ids"]),
             set(report["imported_source_record_ids"]),

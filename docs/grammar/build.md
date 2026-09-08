@@ -46,8 +46,13 @@ Create `.grammar/manifest.json`:
     },
     {
       "source_id": "imabi",
-      "revision_id": "metadata-current",
-      "selection": "metadata"
+      "revision_id": "official-SNAPSHOT_SHA_PREFIX",
+      "selection": "content",
+      "source_content_sha256": "REPLACE_WITH_IMABI_SNAPSHOT_SHA256",
+      "input": {
+        "path": "inputs/imabi.canonical.json",
+        "sha256": "REPLACE_WITH_IMABI_CANONICAL_JSON_SHA256"
+      }
     }
   ]
 }
@@ -140,9 +145,9 @@ A report count does not prove preservation. Adapter and integration reports must
 
 ## Publication checks
 
-`private` permits content only when the registry and source revision both permit local content import. It does not inspect or weaken publication status.
+`private` permits content only when the registry and source revision both permit local content import. It does not inspect or weaken publication status. User-reported project permission for Bunpro and IMABI is sufficient only for this private selection path.
 
-`publishable` permits content only when both the registry and the exact source revision say `publication_mode: allowed`. `denied` and `uncleared` both fail. The revision must also match the registry licence identifier, include the registry's attribution contract in its source attribution, and provide an HTTPS licence-evidence URL. This means a private build may include `bee-bunpo`, Bunpro, or selected local archives while a publishable build containing any of them is rejected before output is written.
+`publishable` permits content only when both the registry and the exact source revision say `publication_mode: allowed`. `denied` and `uncleared` both fail. The revision must also match the registry licence identifier, include the registry's attribution contract in its source attribution, and provide an HTTPS licence-evidence URL. This means a private build may include `bee-bunpo`, Bunpro, IMABI, or selected local archives while a publishable build containing any of them is rejected before output is written.
 
 Metadata-only selections never include source bodies. Their public-safe registry fields can remain in a publishable build without claiming source-content inclusion.
 
@@ -178,7 +183,7 @@ UGD-12 creates `ugd/integration` from the UGD-06 foundation SHA, verifies every 
 2. Bunpro (`bunpro`)
 3. NINJAL (`ninjal-bunkei`)
 4. community inputs sorted by registry source ID, including Yokubi
-5. IMABI metadata (`imabi`)
+5. IMABI content (`imabi`)
 6. any separately linked, completed source-adapter cards sorted by task ID
 
 Example verification and integration skeleton:

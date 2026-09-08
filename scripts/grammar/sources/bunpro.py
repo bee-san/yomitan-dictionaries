@@ -1507,7 +1507,8 @@ def convert_snapshot(
         "revision_id": revision_id,
         "snapshot_sha256": snapshot_sha256,
         "content_status": "substantive-official-html",
-        "publication_mode": PublicationMode.UNCLEARED.value,
+        "permission_basis": "user-reported-project-permission",
+        "publication_mode": PublicationMode.DENIED.value,
         "expected_record_count": len(page_entries),
         "imported_record_count": len(records),
         "rejected_record_count": len(rejected),
@@ -1537,22 +1538,26 @@ def convert_snapshot(
         revision_id=revision_id,
         content_sha256=snapshot_sha256,
         languages=("ja", "en"),
-        attribution="Bunpro; preserve grammar-point URLs and source identity.",
+        attribution=(
+            "Bunpro; preserve grammar-point URLs and source identity. "
+            "Private project use is based on Bee's 2026-09-08 user-reported permission."
+        ),
         license=LicenseInfo(
             identifier=None,
             notice=(
-                "No open redistribution licence was established for Bunpro-derived content; "
-                "private/local import only until separately cleared."
+                "User-reported project permission permits private/local use. No open redistribution "
+                "licence or public-release permission was established."
             ),
             evidence_url=None,
         ),
         access_mode=AccessMode.PUBLIC_HTTP,
         import_mode=ImportMode.CONTENT,
-        publication_mode=PublicationMode.UNCLEARED,
+        publication_mode=PublicationMode.DENIED,
         generated=False,
         provenance_note=(
-            "Official public grammar-point HTML enumerated through the pinned Bunpro sitemap; "
-            "account/SRS state, audio, vocab coverage rows, and answer feedback are excluded."
+            "Official public grammar-point HTML enumerated through the pinned Bunpro sitemap under "
+            "user-reported project permission; account/SRS state, audio, vocab coverage rows, and "
+            "answer feedback are excluded."
         ),
     )
     bundle = SourceBundle(

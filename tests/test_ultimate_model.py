@@ -365,7 +365,7 @@ class RegistryPolicyTests(unittest.TestCase):
             ("bee-bunpo", BuildMode.PUBLISHABLE, SelectionMode.CONTENT, False),
             ("ninjal-bunkei", BuildMode.PRIVATE, SelectionMode.CONTENT, True),
             ("ninjal-bunkei", BuildMode.PUBLISHABLE, SelectionMode.CONTENT, True),
-            ("imabi", BuildMode.PRIVATE, SelectionMode.CONTENT, False),
+            ("imabi", BuildMode.PRIVATE, SelectionMode.CONTENT, True),
             ("imabi", BuildMode.PUBLISHABLE, SelectionMode.CONTENT, False),
             ("imabi", BuildMode.PRIVATE, SelectionMode.METADATA, True),
             ("imabi", BuildMode.PUBLISHABLE, SelectionMode.METADATA, True),
@@ -387,6 +387,20 @@ class RegistryPolicyTests(unittest.TestCase):
         self.assertEqual(source.license_identifier, "CC-BY-4.0")
         self.assertIn("raw.githubusercontent.com", source.allowed_hosts)
         self.assertIn("Sakubi", source.attribution)
+
+    def test_user_reported_permission_only_enables_private_bunpro_and_imabi_content(self):
+        bunpro = get_source("bunpro")
+        imabi = get_source("imabi")
+
+        self.assertIn("user-reported permission", bunpro.attribution)
+        self.assertIn("user-reported permission", imabi.attribution)
+        self.assertEqual(imabi.access_mode.value, "public-http")
+        self.assertEqual(imabi.import_mode.value, "content")
+        self.assertEqual(imabi.publication_mode.value, "denied")
+        with self.assertRaises(PolicyError):
+            validate_selection("bunpro", BuildMode.PUBLISHABLE, SelectionMode.CONTENT)
+        with self.assertRaises(PolicyError):
+            validate_selection("imabi", BuildMode.PUBLISHABLE, SelectionMode.CONTENT)
 
     def test_remote_urls_require_https_and_an_allowlisted_host(self):
         validate_remote_url(

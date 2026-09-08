@@ -10,7 +10,7 @@ Registry version 1 separates three questions:
 2. Import: whether source content may enter Bee's private canonical build (`content`, `metadata-only`, or `denied`).
 3. Publication: whether copied source content is cleared for redistribution (`allowed`, `denied`, or `uncleared`).
 
-These fields are independent. In particular, `bee-bunpo` and the five selected community archives allow local content import but deny publication. A code licence, a public web page, or an available archive never upgrades content publication policy. Only registry version changes backed by new evidence can relax policy. A source manifest or adapter may be more restrictive than the registry, never more permissive.
+These fields are independent. In particular, `bee-bunpo`, Bunpro, IMABI, and the five selected community archives allow private content import but deny publication. A code licence, a public web page, or an available archive never upgrades content publication policy. Only registry version changes backed by new evidence can relax policy. A source manifest or adapter may be more restrictive than the registry, never more permissive.
 
 A metadata selection includes only this registry's source name, homepage, status, and attribution note. It does not include source lesson bodies or copied explanations. Publication policy applies to copied content; public-safe metadata/link records do not launder that content.
 
@@ -19,7 +19,7 @@ A metadata selection includes only this registry's source name, homepage, status
 | Source ID | Source | Access / import | Content publication | Selection decision |
 | --- | --- | --- | --- | --- |
 | `bee-bunpo` | Bee 文法 | local file / content | denied | required private source |
-| `bunpro` | Bunpro grammar points | public HTTP / content | uncleared | required private source |
+| `bunpro` | Bunpro grammar points | public HTTP / content | denied | required private source; user-reported project permission |
 | `bunpro-public-metadata` | Bunpro identity/formation metadata | metadata only | uncleared | public canary metadata only |
 | `bunpro-josh-cache` | J-O-S-H-L Bunpro cache | public HTTP / content | uncleared | secondary private cache |
 | `ninjal-bunkei` | NINJAL 日本語文型データベース | public HTTP / content | allowed, CC BY 4.0 | selected open source |
@@ -28,7 +28,7 @@ A metadata selection includes only this registry's source name, homepage, status
 | `e-de-wakaru` | E de wakaru | local file / content | denied | selected private archive |
 | `dojg` | Dictionary of Japanese Grammar | lawful local file / content | denied | selected private archive |
 | `nihongo-no-sensei` | Nihongo no sensei | local file / content | denied | selected private archive |
-| `imabi` | IMABI | metadata only | denied | link-only; lesson content deferred |
+| `imabi` | IMABI | public HTTP / content | denied | required private source; user-reported project permission |
 | `tae-kim` | Tae Kim's Guide | metadata only | uncleared | deferred/link-only |
 | `jlpt-sensei` | JLPT Sensei | metadata only | uncleared | deferred/link-only |
 | `maggie-sensei` | Maggie Sensei | metadata only | uncleared | deferred/link-only |
@@ -50,7 +50,7 @@ Bee states that the supplied work is their own. That later declaration must be p
 
 ### Bunpro
 
-The private ingestion source of truth is the official grammar-point HTML and sitemap. Sampled N5/N3/N1 pages carry substantive explanations, formation information, examples, level labels, and source links. Badge-only generators are insufficient. The J-O-S-H-L cache at commit `010fb773945993217f3f2426f996d9c251341254` contains 913 cached grammar pages and four term banks, but is under construction and has no located content licence. Bunpro-derived content therefore remains private and publication-uncleared.
+The private ingestion source of truth is the official grammar-point HTML and sitemap. Sampled N5/N3/N1 pages carry substantive explanations, formation information, examples, level labels, and source links. Badge-only generators are insufficient. The J-O-S-H-L cache at commit `010fb773945993217f3f2426f996d9c251341254` contains 913 cached grammar pages and four term banks, but is under construction and has no located content licence. Bee reported project-specific approval on 8 September 2026; that is recorded as user-reported permission rather than an open licence or independently verified redistribution grant. Bunpro-derived content therefore remains private and publication-denied.
 
 ### NINJAL
 
@@ -62,7 +62,7 @@ The measured archive row counts are Nihongo Kyoshi 170, Donna Toki 1,082, E de w
 
 ### IMABI
 
-IMABI is metadata/link-only. The public site says no offline format is available, its terms reserve rights and prohibit text/data mining and web scraping, and no permitted export route was found. Store lesson ID, title, canonical URL, table-of-contents section, and modern/classical label only. Do not copy lesson bodies. A later content adapter requires a lawful local export or explicit permission and a registry policy revision.
+The public site says no offline format is available, and its published terms reserve rights and prohibit text/data mining and web scraping. Bee reported project-specific approval from the IMABI authors on 8 September 2026. The registry records that report as permission for bounded private-project acquisition and content import, not as an open licence, blanket redistribution grant, or independently verified permission record. The content adapter must retain a complete hash-pinned private snapshot, exact lesson identity accounting, modern/classical source labels, source attribution, and field-level provenance. Publication remains denied.
 
 ### Yokubi
 
