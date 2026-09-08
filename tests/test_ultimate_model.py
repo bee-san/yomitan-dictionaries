@@ -7,7 +7,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+from urllib.error import URLError
+from urllib.request import Request
 
+import scripts.grammar.build as builder
 from scripts.grammar.build import BuildError, build_from_manifest
 from scripts.grammar.model import (
     BuildMode,
@@ -19,6 +23,9 @@ from scripts.grammar.model import (
     Provenance,
     PublicationMode,
     SelectionMode,
+    SourceBundle,
+    SourceLink,
+    SourceRecord,
     SourceRevision,
     SourceSense,
     canonical_sense_id,
@@ -57,7 +64,7 @@ def revision_dict(*, publication_mode="denied"):
     }
 
 
-def source_bundle():
+def source_bundle(*, publication_mode="denied"):
     record_id = "bee-bunpo:fixture-r1:record:1"
     sense_id = f"{record_id}:sense:1"
     provenance = {
@@ -70,7 +77,7 @@ def source_bundle():
     return {
         "format": "ugd-canonical-source",
         "format_version": 1,
-        "source_revision": revision_dict(),
+        "source_revision": revision_dict(publication_mode=publication_mode),
         "records": [
             {
                 "source_record_id": record_id,
@@ -107,6 +114,77 @@ def source_bundle():
 
 
 class CanonicalModelTests(unittest.TestCase):
+    def test_source_record_field_hashes_are_immutable(self):
+        record = SourceRecord(
+            "bee-bunpo:fixture-r1:record:1",
+            "〜ために",
+            1,
+            {"meaning": SHA_B},
+        )
+
+        with self.assertRaises(TypeError):
+            record.field_hashes["meaning"] = "0" * 64  # type: ignore[index]
+
+    def test_duplicate_block_ids_are_rejected(self):
+        value = source_bundle()
+        value["senses"][0]["blocks"].append(dict(value["senses"][0]["blocks"][0]))
+
+        with self.assertRaisesRegex(ValueError, "duplicate block_id"):
+            SourceBundle.from_dict(value)
+
+    def test_media_must_reference_a_known_source_record(self):
+        value = source_bundle()
+        value["media"].append(
+            {
+                "media_id": "bee-bunpo:fixture-r1:media:chart",
+                "source_path": "media/chart.png",
+                "content_sha256": SHA_B,
+                "media_type": "image/png",
+                "byte_count": 1,
+                "provenance": {
+                    "source_id": "bee-bunpo",
+                    "revision_id": "fixture-r1",
+                    "source_record_id": "bee-bunpo:fixture-r1:record:unknown",
+                    "locator": "media:chart.png",
+                    "content_sha256": SHA_B,
+                },
+            }
+        )
+
+        with self.assertRaisesRegex(ValueError, "media.*unknown source record"):
+            SourceBundle.from_dict(value)
+
+    def test_content_provenance_must_match_its_source_sense_record(self):
+        value = source_bundle()
+        value["senses"][0]["blocks"][0]["provenance"]["source_record_id"] = (
+            "bee-bunpo:fixture-r1:record:unknown"
+        )
+
+        with self.assertRaisesRegex(ValueError, "provenance.*source record"):
+            SourceBundle.from_dict(value)
+
+    def test_source_links_preserve_safe_http_but_reject_credentials(self):
+        self.assertEqual(
+            SourceLink("Legacy source", "http://example.org/grammar").url,
+            "http://example.org/grammar",
+        )
+        with self.assertRaisesRegex(ValueError, "credentials"):
+            SourceLink("Unsafe source", "https://user:pass@example.org/grammar")
+
+    def test_unknown_canonical_fields_fail_instead_of_disappearing(self):
+        value = source_bundle()
+        value["records"][0]["unmapped_field"] = "must not disappear"
+
+        with self.assertRaisesRegex(ValueError, "unsupported.*unmapped_field"):
+            SourceBundle.from_dict(value)
+
+    def test_boolean_canonical_format_version_is_rejected(self):
+        value = source_bundle()
+        value["format_version"] = True
+
+        with self.assertRaisesRegex(ValueError, "unsupported canonical source"):
+            SourceBundle.from_dict(value)
+
     def test_source_qualified_senses_keep_same_expression_distinct(self):
         first = "bee-bunpo:fixture-r1:record:110:sense:1"
         second = "bee-bunpo:fixture-r1:record:111:sense:1"
@@ -213,6 +291,13 @@ class RegistryPolicyTests(unittest.TestCase):
             with self.subTest(url=url), self.assertRaises(PolicyError):
                 validate_remote_url("yokubi", url)
 
+    def test_remote_url_with_invalid_port_fails_as_policy_error(self):
+        with self.assertRaises(PolicyError):
+            validate_remote_url(
+                "yokubi",
+                "https://raw.githubusercontent.com:not-a-port/Morgawr/yokubi",
+            )
+
 
 class BuildCliTests(unittest.TestCase):
     def setUp(self):
@@ -272,6 +357,32 @@ class BuildCliTests(unittest.TestCase):
         self.assertNotIn(str(self.root), output.read_text(encoding="utf-8"))
         self.assertNotIn(str(self.root), report_path.read_text(encoding="utf-8"))
 
+    def test_duplicate_manifest_keys_are_rejected(self):
+        manifest = self.root / "manifest.json"
+        manifest.write_text(
+            '{"format":"ugd-source-manifest","format_version":1,'
+            '"registry_version":1,"registry_version":1,"sources":[]}',
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(BuildError, "duplicate JSON key"):
+            build_from_manifest(manifest, self.root / "build.json", self.root / "report.json")
+
+    def test_boolean_manifest_versions_are_rejected(self):
+        for field in ("format_version", "registry_version"):
+            with self.subTest(field=field):
+                manifest = self.write_manifest()
+                value = json.loads(manifest.read_text(encoding="utf-8"))
+                value[field] = True
+                manifest.write_text(json.dumps(value), encoding="utf-8")
+
+                with self.assertRaises(BuildError):
+                    build_from_manifest(
+                        manifest,
+                        self.root / "build.json",
+                        self.root / "report.json",
+                    )
+
     def test_publishable_build_refuses_uncleared_content_before_writing(self):
         manifest = self.write_manifest(build_mode="publishable")
         output = self.root / "build.json"
@@ -282,6 +393,21 @@ class BuildCliTests(unittest.TestCase):
 
         self.assertFalse(output.exists())
         self.assertFalse(report.exists())
+
+    def test_revision_cannot_loosen_registry_publication_policy(self):
+        self.input_path.write_text(
+            json.dumps(source_bundle(publication_mode="allowed"), sort_keys=True),
+            encoding="utf-8",
+        )
+        self.input_sha256 = hashlib.sha256(self.input_path.read_bytes()).hexdigest()
+        manifest = self.write_manifest()
+
+        with self.assertRaisesRegex(BuildError, "exceeds registry publication policy"):
+            build_from_manifest(
+                manifest,
+                self.root / "build.json",
+                self.root / "report.json",
+            )
 
     def test_hash_mismatch_fails_before_writing(self):
         manifest = self.write_manifest(input_sha256="0" * 64)
@@ -295,6 +421,71 @@ class BuildCliTests(unittest.TestCase):
         manifest = self.write_manifest(path="../source.json")
         with self.assertRaisesRegex(BuildError, "escape"):
             build_from_manifest(manifest, self.root / "build.json", self.root / "report.json")
+
+    def test_output_cannot_overwrite_a_pinned_input(self):
+        manifest = self.write_manifest()
+
+        with self.assertRaisesRegex(BuildError, "pinned input"):
+            build_from_manifest(manifest, self.input_path, self.root / "report.json")
+
+    def test_failed_refresh_preserves_the_previous_bad_cache_for_diagnosis(self):
+        cache = self.root / "cache.json"
+        cache.write_bytes(b"corrupt cache")
+        expected_sha256 = hashlib.sha256(b"expected content").hexdigest()
+        spec = {
+            "url": "https://raw.githubusercontent.com/Morgawr/yokubi/main/source.json",
+            "cache": "cache.json",
+            "sha256": expected_sha256,
+            "max_bytes": 1024,
+        }
+
+        with (
+            patch.object(builder, "_download_once", side_effect=URLError("offline")),
+            patch.object(builder.time, "sleep"),
+            self.assertRaises(BuildError),
+        ):
+            builder._materialize_input("yokubi", spec, self.root)
+
+        self.assertEqual(cache.read_bytes(), b"corrupt cache")
+
+    def test_redirect_policy_is_checked_before_following_the_redirect(self):
+        handler = builder._PolicyRedirectHandler("yokubi")
+        request = Request("https://raw.githubusercontent.com/Morgawr/yokubi/source.json")
+
+        with self.assertRaises(PolicyError):
+            handler.redirect_request(
+                request,
+                None,
+                302,
+                "Found",
+                {},
+                "http://127.0.0.1/private",
+            )
+
+    def test_second_output_failure_restores_existing_output_and_report(self):
+        manifest = self.write_manifest()
+        output = self.root / "build.json"
+        report = self.root / "report.json"
+        output.write_bytes(b"previous output")
+        report.write_bytes(b"previous report")
+        original_replace = builder._replace_path
+        failed = False
+
+        def fail_report_install(source, destination):
+            nonlocal failed
+            if destination == report.resolve() and not failed:
+                failed = True
+                raise OSError("simulated report write failure")
+            return original_replace(source, destination)
+
+        with (
+            patch.object(builder, "_replace_path", side_effect=fail_report_install),
+            self.assertRaises(OSError),
+        ):
+            build_from_manifest(manifest, output, report)
+
+        self.assertEqual(output.read_bytes(), b"previous output")
+        self.assertEqual(report.read_bytes(), b"previous report")
 
     def test_build_output_is_deterministic(self):
         manifest = self.write_manifest()
@@ -316,6 +507,31 @@ class BuildCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         for option in ("--source-manifest", "--output", "--report", "--mode"):
             self.assertIn(option, result.stdout)
+
+    def test_cli_builds_a_synthetic_fixture(self):
+        manifest = self.write_manifest()
+        output = self.root / "cli-build.json"
+        report = self.root / "cli-report.json"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts/grammar/build.py"),
+                "--source-manifest",
+                str(manifest),
+                "--output",
+                str(output),
+                "--report",
+                str(report),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(output.read_text())["build_mode"], "private")
+        self.assertEqual(json.loads(report.read_text())["content_source_count"], 1)
 
 
 if __name__ == "__main__":

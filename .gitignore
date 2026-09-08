@@ -5,3 +5,6 @@
 __pycache__/
 *.py[cod]
 release-downloads/
+
+# Private grammar inputs, caches, manifests, reports, and builds.
+.grammar/

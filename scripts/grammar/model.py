@@ -8,7 +8,9 @@ import hashlib
 import json
 import math
 import re
+from types import MappingProxyType
 from typing import Any, Mapping, Sequence
+from urllib.parse import urlsplit
 
 
 MODEL_FORMAT_VERSION = 1
@@ -103,6 +105,12 @@ def _qualified_prefix(source_id: str, revision_id: str) -> str:
     return f"{source_id}:{revision_id}:"
 
 
+def _strict_fields(value: Mapping[str, Any], allowed: set[str], context: str) -> None:
+    unknown = set(value) - allowed
+    if unknown:
+        raise ValueError(f"{context} has unsupported fields: {sorted(unknown)}")
+
+
 def canonical_sense_id(source_sense_ids: Sequence[str]) -> str:
     """Return an order-independent identity without using spelling or meaning."""
     members = sorted({_nonempty(value, "source_sense_id") for value in source_sense_ids})
@@ -127,6 +135,7 @@ class LicenseInfo:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "LicenseInfo":
+        _strict_fields(value, {"identifier", "notice", "evidence_url"}, "license")
         return cls(value.get("identifier"), value["notice"], value.get("evidence_url"))
 
     def to_dict(self) -> dict[str, Any]:
@@ -180,6 +189,23 @@ class SourceRevision:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "SourceRevision":
+        _strict_fields(
+            value,
+            {
+                "source_id",
+                "revision_id",
+                "content_sha256",
+                "languages",
+                "attribution",
+                "license",
+                "access_mode",
+                "import_mode",
+                "publication_mode",
+                "generated",
+                "provenance_note",
+            },
+            "source_revision",
+        )
         return cls(
             source_id=value["source_id"],
             revision_id=value["revision_id"],
@@ -226,6 +252,11 @@ class Provenance:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "Provenance":
+        _strict_fields(
+            value,
+            {"source_id", "revision_id", "source_record_id", "locator", "content_sha256"},
+            "provenance",
+        )
         return cls(
             source_id=value["source_id"],
             revision_id=value["revision_id"],
@@ -260,10 +291,19 @@ class SourceRecord:
         for name, digest in hashes.items():
             _nonempty(name, "field name")
             _sha256(digest, f"field hash {name}")
-        object.__setattr__(self, "field_hashes", dict(sorted(hashes.items())))
+        object.__setattr__(
+            self,
+            "field_hashes",
+            MappingProxyType(dict(sorted(hashes.items()))),
+        )
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "SourceRecord":
+        _strict_fields(
+            value,
+            {"source_record_id", "raw_expression", "order", "field_hashes"},
+            "source record",
+        )
         return cls(
             source_record_id=value["source_record_id"],
             raw_expression=value["raw_expression"],
@@ -287,11 +327,21 @@ class SourceLink:
 
     def __post_init__(self) -> None:
         _nonempty(self.label, "link label")
-        if not isinstance(self.url, str) or not self.url.startswith("https://"):
-            raise ValueError("source link must use HTTPS")
+        if not isinstance(self.url, str):
+            raise ValueError("source link URL must be a string")
+        parsed = urlsplit(self.url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("source link must use HTTP or HTTPS with a host")
+        if parsed.username or parsed.password:
+            raise ValueError("source link must not contain credentials")
+        try:
+            parsed.port
+        except ValueError as error:
+            raise ValueError("source link has an invalid port") from error
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "SourceLink":
+        _strict_fields(value, {"label", "url"}, "source link")
         return cls(value["label"], value["url"])
 
     def to_dict(self) -> dict[str, str]:
@@ -323,6 +373,11 @@ class ContentBlock:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "ContentBlock":
+        _strict_fields(
+            value,
+            {"block_id", "kind", "language", "content", "order", "provenance", "generated"},
+            "content block",
+        )
         return cls(
             block_id=value["block_id"],
             kind=value["kind"],
@@ -372,6 +427,19 @@ class ExamplePair:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "ExamplePair":
+        _strict_fields(
+            value,
+            {
+                "example_id",
+                "japanese",
+                "translation",
+                "translation_language",
+                "order",
+                "provenance",
+                "generated",
+            },
+            "example pair",
+        )
         return cls(
             example_id=value["example_id"],
             japanese=value["japanese"],
@@ -418,6 +486,11 @@ class MediaRecord:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "MediaRecord":
+        _strict_fields(
+            value,
+            {"media_id", "source_path", "content_sha256", "media_type", "byte_count", "provenance"},
+            "media record",
+        )
         return cls(
             media_id=value["media_id"],
             source_path=value["source_path"],
@@ -474,6 +547,21 @@ class SourceSense:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "SourceSense":
+        _strict_fields(
+            value,
+            {
+                "source_sense_id",
+                "source_record_id",
+                "partition_status",
+                "concept_ref",
+                "blocks",
+                "examples",
+                "level_labels",
+                "register_labels",
+                "links",
+            },
+            "source sense",
+        )
         return cls(
             source_sense_id=value["source_sense_id"],
             source_record_id=value["source_record_id"],
@@ -530,7 +618,17 @@ class SourceBundle:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "SourceBundle":
-        if value.get("format") != "ugd-canonical-source" or value.get("format_version") != MODEL_FORMAT_VERSION:
+        _strict_fields(
+            value,
+            {"format", "format_version", "source_revision", "records", "senses", "media"},
+            "canonical source",
+        )
+        format_version = value.get("format_version")
+        if (
+            value.get("format") != "ugd-canonical-source"
+            or type(format_version) is not int
+            or format_version != MODEL_FORMAT_VERSION
+        ):
             raise ValueError("unsupported canonical source format or version")
         bundle = cls(
             source_revision=SourceRevision.from_dict(value["source_revision"]),
@@ -562,10 +660,18 @@ class SourceBundle:
                     self.source_revision.revision_id,
                 ):
                     raise ValueError("content provenance belongs to another source revision")
+        block_ids = [block.block_id for sense in self.senses for block in sense.blocks]
+        if len(block_ids) != len(set(block_ids)):
+            raise ValueError("duplicate block_id")
+        example_ids = [example.example_id for sense in self.senses for example in sense.examples]
+        if len(example_ids) != len(set(example_ids)):
+            raise ValueError("duplicate example_id")
         media_ids = [item.media_id for item in self.media]
         if len(media_ids) != len(set(media_ids)):
             raise ValueError("duplicate media_id")
         for item in self.media:
+            if item.provenance.source_record_id not in known_records:
+                raise ValueError("media references an unknown source record")
             if (item.provenance.source_id, item.provenance.revision_id) != (
                 self.source_revision.source_id,
                 self.source_revision.revision_id,

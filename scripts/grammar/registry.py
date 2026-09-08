@@ -358,6 +358,10 @@ def validate_remote_url(source_id: str, url: str) -> str:
     host = parsed.hostname.lower().rstrip(".")
     if host not in source.allowed_hosts:
         raise PolicyError(f"{source_id} remote host {host!r} is not allowlisted")
-    if parsed.port not in (None, 443):
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise PolicyError(f"{source_id} remote input has an invalid port") from error
+    if port not in (None, 443):
         raise PolicyError(f"{source_id} remote input must use the default HTTPS port")
     return url
