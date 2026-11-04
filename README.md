@@ -4,7 +4,7 @@ Custom Japanese dictionaries for Yomitan, covering places, culture, food, folklo
 
 [![Latest release](https://img.shields.io/github/v/release/bee-san/yomitan-dictionaries?label=download)](https://github.com/bee-san/yomitan-dictionaries/releases/latest)
 [![Dictionaries](https://img.shields.io/badge/dictionaries-19-6f42c1)](https://github.com/bee-san/yomitan-dictionaries/releases)
-[![Yomitan validation](https://github.com/bee-san/yomitan-dictionaries/actions/workflows/validate.yml/badge.svg)](https://github.com/bee-san/yomitan-dictionaries/actions/workflows/validate.yml)
+[![Yomitan validation](https://github.com/bee-san/yomitan-dictionaries/actions/workflows/validate.yml/badge.svg)](https://github.com/bee-san/yomitan-dictionaries/actions/workflows/validate.yml) [![Discord](https://img.shields.io/discord/754001738184392704?logo=discord&label=Discord)](https://discord.skerritt.blog)
 
 The ZIP files are published as [GitHub release assets](https://github.com/bee-san/yomitan-dictionaries/releases/latest), not committed to Git. Each archive is ready to import directly into Yomitan. Source and attribution information appears in `index.json` and, where available, dedicated manifests inside the archive.
 
