@@ -172,6 +172,15 @@
       "lookup_entries": 1324,
       "bytes": 1095259,
       "sha256": "67f82da8316e0c9c33346bc0480b7b15c5ebb6b85c8c41bdf9ca487629f931f6"
+    },
+    {
+      "file": "pokemon-zukan-yomitan.zip",
+      "title": "Pokémon Zukan (Illustrated)",
+      "revision": "2026.11.23-v1",
+      "description": "All 1,025 Pokémon species by Japanese name, each with official artwork, English name, official romanisation, category, types, height, weight, abilities, evolution line and a Pokédex entry in kanji, kana and English. 109 separately named forms such as Mega Evolutions have their own entries, and 302 alternate forms are illustrated.",
+      "lookup_entries": 1134,
+      "bytes": 28393093,
+      "sha256": "73630fb274f2c01129f3657ec09b1e90e25e2de41c742960441419bc1d31c380"
     }
   ]
 }
