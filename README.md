@@ -1,9 +1,9 @@
 # Bee's Yomitan Dictionaries
 
-Custom Japanese dictionaries for Yomitan, covering places, culture, food, folklore, poetry, names, geography and grammar.
+Custom Japanese dictionaries for Yomitan, covering places, culture, food, folklore, poetry, names, geography, grammar and Pokémon.
 
 [![Latest release](https://img.shields.io/github/v/release/bee-san/yomitan-dictionaries?label=download)](https://github.com/bee-san/yomitan-dictionaries/releases/latest)
-[![Dictionaries](https://img.shields.io/badge/dictionaries-19-6f42c1)](https://github.com/bee-san/yomitan-dictionaries/releases)
+[![Dictionaries](https://img.shields.io/badge/dictionaries-20-6f42c1)](https://github.com/bee-san/yomitan-dictionaries/releases)
 [![Yomitan validation](https://github.com/bee-san/yomitan-dictionaries/actions/workflows/validate.yml/badge.svg)](https://github.com/bee-san/yomitan-dictionaries/actions/workflows/validate.yml) [![Discord](https://img.shields.io/discord/754001738184392704?logo=discord&label=Discord)](https://discord.skerritt.blog)
 
 The ZIP files are published as [GitHub release assets](https://github.com/bee-san/yomitan-dictionaries/releases/latest), not committed to Git. Each archive is ready to import directly into Yomitan. Source and attribution information appears in `index.json` and, where available, dedicated manifests inside the archive.
@@ -40,8 +40,9 @@ Downloading or syncing a ZIP does not automatically import it into Yomitan.
 | **National Parks of Japan** | All 35 current national parks with official readings, overviews, designation data, prefectures and photographs | 70 | 7.9 MB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/japanese-national-parks-yomitan.zip) |
 | **Onomanabi - Japanese Onomatopoeia** | 1,515 onomatopoeia entries with readings, categories and native pitch accents; 838 have definitions and bilingual examples, and 677 are explicitly marked as missing definitions | 1,515 | 197 KB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/onomanabi-yomitan.zip) |
 | **文法** | 534 grammar notes with explanations, furigana, 4,630 original examples, 2,670 labelled AI bilingual example pairs and two source images; extra lookup aliases preserve source notation | 1,324 | 1.1 MB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/bunpo-yomitan.zip) |
+| **Pokémon Zukan (Illustrated)** | All 1,025 Pokémon species by Japanese name with official artwork, English names, types, abilities, evolution lines and Pokédex entries in kanji, kana and English; 109 named forms such as Mega Evolutions have their own entries | 1,134 | 28.4 MB | [ZIP](https://github.com/bee-san/yomitan-dictionaries/releases/download/2026.09.01/pokemon-zukan-yomitan.zip) |
 
-The complete release is 694.4 MB. `CATALOGUE.json` provides machine-readable titles, revisions, sizes and SHA-256 hashes.
+The complete release is 722.8 MB. `CATALOGUE.json` provides machine-readable titles, revisions, sizes and SHA-256 hashes.
 
 ## A little more about each dictionary
 
@@ -127,11 +128,17 @@ There are 1,324 lookup rows: 534 source rows and 790 additional aliases, coverin
 
 Source links to 日本語NET are retained. The deck's third-party text/image redistribution terms are not established by this conversion; publication at the collection owner's request does not grant a new reuse licence. The bundled font, Anki templates, CSS, JavaScript, TTS and review history are omitted. `SOURCE.json` and `RIGHTS.txt` document these limits.
 
+### Pokémon Zukan (Illustrated)
+
+Every one of the 1,025 Pokémon species, looked up by its Japanese name. Each entry shows the official artwork, National Pokédex number, English name, official romanisation, category, types, height, weight, abilities, a clickable evolution line and the most recent Pokédex entry in kanji, kana and English. 302 alternate forms (regional forms, Gigantamax, Mega Evolutions and more) are illustrated inside their species entry, and 109 forms with a name of their own, such as メガリザードンＸ or ヒートロトム, are also separate lookup entries.
+
+Data and artwork files come from [PokeAPI](https://pokeapi.co) at the commits recorded in `SOURCE.json`. This is an unofficial fan-made reference: Pokémon names, Pokédex text and artwork are © Nintendo / Creatures Inc. / GAME FREAK inc., and no reuse licence is granted. Forms without a Japanese form name or official artwork are omitted, and the kana Pokédex text keeps the spacing published by PokeAPI. `RIGHTS.txt` carries the full notice.
+
 ## Rights and source status
 
 These are custom dictionary compilations, not claims of ownership over the underlying source material. There is no blanket licence covering every archive. Each ZIP's embedded notices take precedence.
 
-The collection owner explicitly authorised publication of all 19 archives. That authorisation does not replace third-party permission or grant downstream reuse rights. Several archives retain unresolved source-deck provenance, private-study media warnings or source-page-dependent licence requirements. These limits are documented above and inside the affected archives rather than being hidden behind a blanket licence.
+The collection owner explicitly authorised publication of all 20 archives. That authorisation does not replace third-party permission or grant downstream reuse rights. Several archives retain unresolved source-deck provenance, private-study media warnings or source-page-dependent licence requirements. These limits are documented above and inside the affected archives rather than being hidden behind a blanket licence.
 
 If you redistribute an archive or reuse its contents, preserve all attribution files and follow every upstream licence and restriction named inside it.
 
@@ -139,7 +146,7 @@ If you redistribute an archive or reuse its contents, preserve all attribution f
 
 Every published asset passes a complete ZIP CRC test, metadata and checksum checks, lookup-entry counts, contiguous bank numbering, safe path checks and media-reference checks.
 
-GitHub Actions downloads all 19 published archives, imports each one with Yomitan's official importer, and queries a real term from every imported dictionary. Change checks use a pinned compatibility commit for repeatable results. A monthly check follows Yomitan's current default branch to catch future importer incompatibilities.
+GitHub Actions downloads all 20 published archives, imports each one with Yomitan's official importer, and queries a real term from every imported dictionary. Change checks use a pinned compatibility commit for repeatable results. A monthly check follows Yomitan's current default branch to catch future importer incompatibilities.
 
 After downloading the assets and `CHECKSUMS.sha256` into the same directory, verify them with:
 
@@ -151,6 +158,7 @@ Repository checks can be run locally with:
 
 ```bash
 python3 -m pip install zstandard==0.25.0  # Needed for Python 3.12/3.13; optional on 3.14
+python3 -m pip install pillow==13.0.0     # Needed for the Pokémon builder and its tests
 python3 -m unittest discover -s tests -v
 python3 scripts/validate_release.py --assets-dir ./release-assets
 ```
@@ -172,3 +180,14 @@ python3 scripts/convert_bunpo.py 文法.apkg bunpo-yomitan.zip \
 ```
 
 The report is local audit evidence, not an additional release asset.
+
+To rebuild the Pokémon dictionary, downloading the pinned PokeAPI tables and artwork into `pokeapi-data/` first:
+
+```bash
+python3 scripts/build_pokemon.py pokeapi-data pokemon-zukan-yomitan.zip --fetch \
+  --revision 2026.11.23-v1 \
+  --pokeapi-commit de6760be38b60a3024f1d9054330ff265f0dc619 \
+  --sprites-commit c0542f7c51215d9672439012838c99f520596cbd
+```
+
+The image bytes depend on the Pillow and libwebp versions, so a rebuild can differ from the published hash while holding the same entries.
